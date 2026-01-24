@@ -26,7 +26,7 @@ app_license = "mit"
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/material_price_control/css/material_price_control.css"
-# app_include_js = "/assets/material_price_control/js/material_price_control.js"
+app_include_js = "/assets/material_price_control/js/echarts.min.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/material_price_control/css/material_price_control.css"
@@ -137,13 +137,17 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Purchase Receipt": {
+		"before_submit": "material_price_control.material_price_control.guard.check_purchase_receipt"
+	},
+	"Purchase Invoice": {
+		"before_submit": "material_price_control.material_price_control.guard.check_purchase_invoice"
+	},
+	"Stock Entry": {
+		"before_submit": "material_price_control.material_price_control.guard.check_stock_entry"
+	}
+}
 
 # Scheduled Tasks
 # ---------------

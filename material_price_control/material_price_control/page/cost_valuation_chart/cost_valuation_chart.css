@@ -1,0 +1,184 @@
+/* Cost Valuation Chart Page Styles */
+
+.cost-valuation-chart-container {
+	padding: 15px;
+	max-width: 1400px;
+	margin: 0 auto;
+}
+
+/* Filter Section */
+.filter-section {
+	background: var(--card-bg);
+	border-radius: var(--border-radius-lg);
+	border: 1px solid var(--border-color);
+}
+
+.filter-section .form-group {
+	margin-bottom: 0;
+}
+
+.filter-section .control-label {
+	font-size: 12px;
+	font-weight: 600;
+	margin-bottom: 4px;
+	display: block;
+}
+
+.filter-section .form-control {
+	height: 32px;
+	font-size: 13px;
+}
+
+.filter-section .link-field .awesomplete {
+	width: 100%;
+}
+
+/* Dashboard Section */
+.dashboard-section {
+	background: var(--card-bg);
+	border-radius: var(--border-radius-lg);
+	border: 1px solid var(--border-color);
+}
+
+/* Item Cards */
+.item-card {
+	transition: all 0.2s ease;
+	border: 1px solid var(--border-color);
+}
+
+.item-card:hover {
+	transform: translateY(-3px);
+	box-shadow: var(--shadow-md);
+	border-color: var(--primary);
+}
+
+.item-card.border-danger {
+	border-color: var(--red) !important;
+	background: rgba(220, 53, 69, 0.05);
+}
+
+.item-card.border-warning {
+	border-color: var(--yellow) !important;
+	background: rgba(255, 193, 7, 0.05);
+}
+
+/* Chart Section */
+.chart-section {
+	background: var(--card-bg);
+	border-radius: var(--border-radius-lg);
+	border: 1px solid var(--border-color);
+}
+
+.chart-stats {
+	line-height: 1.8;
+}
+
+.chart-stats .badge {
+	font-weight: 500;
+	font-size: 11px;
+}
+
+/* Table Section */
+.table-section {
+	background: var(--card-bg);
+	border-radius: var(--border-radius-lg);
+	border: 1px solid var(--border-color);
+}
+
+#data-table .table {
+	font-size: 12px;
+	margin-bottom: 0;
+}
+
+#data-table .table th {
+	font-weight: 600;
+	white-space: nowrap;
+	background: var(--subtle-fg);
+	border-bottom-width: 2px;
+}
+
+#data-table .table td {
+	vertical-align: middle;
+}
+
+#data-table .table-danger {
+	background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+#data-table .table-warning {
+	background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+#data-table .badge {
+	font-size: 10px;
+	padding: 4px 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+	#control-chart {
+		height: 350px !important;
+	}
+	
+	.filter-section .col-md-4,
+	.filter-section .col-md-2 {
+		margin-bottom: 10px;
+	}
+}
+
+@media (max-width: 576px) {
+	.cost-valuation-chart-container {
+		padding: 10px;
+	}
+	
+	#control-chart {
+		height: 280px !important;
+	}
+	
+	.chart-stats .badge {
+		font-size: 10px;
+		margin-bottom: 4px;
+	}
+}
+
+/* Dark mode support */
+[data-theme="dark"] .filter-section,
+[data-theme="dark"] .dashboard-section,
+[data-theme="dark"] .chart-section,
+[data-theme="dark"] .table-section {
+	background: var(--card-bg);
+}
+
+[data-theme="dark"] .item-card {
+	background: var(--card-bg);
+}
+
+[data-theme="dark"] .item-card.border-danger {
+	background: rgba(220, 53, 69, 0.1);
+}
+
+[data-theme="dark"] .item-card.border-warning {
+	background: rgba(255, 193, 7, 0.1);
+}
+
+[data-theme="dark"] #data-table .table-danger {
+	background-color: rgba(220, 53, 69, 0.2) !important;
+}
+
+[data-theme="dark"] #data-table .table-warning {
+	background-color: rgba(255, 193, 7, 0.2) !important;
+}
+
+/* Loading states */
+.fa-spinner {
+	color: var(--primary);
+}
+
+/* Card hover effects */
+.frappe-card {
+	transition: box-shadow 0.2s ease;
+}
+
+.frappe-card:hover {
+	box-shadow: var(--shadow-sm);
+}

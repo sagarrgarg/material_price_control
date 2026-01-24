@@ -1,0 +1,23 @@
+{
+ "creation": "2026-01-20 16:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2026-01-20 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Material Price Control",
+ "name": "cost-valuation-chart",
+ "owner": "Administrator",
+ "page_name": "cost-valuation-chart",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Stock Manager"
+  }
+ ],
+ "standard": "Yes",
+ "system_page": 0,
+ "title": "Cost Valuation Chart"
+}

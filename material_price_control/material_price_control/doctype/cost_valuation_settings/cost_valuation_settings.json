@@ -1,0 +1,102 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "hash",
+ "issingle": 1,
+ "creation": "2026-01-20 16:00:00",
+ "doctype": "DocType",
+ "document_type": "Setup",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "column_break_1",
+  "default_variance_pct",
+  "severe_multiplier",
+  "section_break_2",
+  "block_severe",
+  "block_if_no_rule",
+  "bypass_roles"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "30",
+   "description": "Default allowed variance percentage",
+   "fieldname": "default_variance_pct",
+   "fieldtype": "Percent",
+   "label": "Default Variance %",
+   "reqd": 1
+  },
+  {
+   "default": "2",
+   "description": "Severe anomaly = variance > (default_variance_pct * severe_multiplier)",
+   "fieldname": "severe_multiplier",
+   "fieldtype": "Float",
+   "label": "Severe Multiplier",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_2",
+   "fieldtype": "Section Break",
+   "label": "Blocking Settings"
+  },
+  {
+   "default": "0",
+   "fieldname": "block_severe",
+   "fieldtype": "Check",
+   "label": "Block Severe Anomalies"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.enabled",
+   "description": "Block stock-in transactions if no Cost Valuation Rule exists for the item",
+   "fieldname": "block_if_no_rule",
+   "fieldtype": "Check",
+   "label": "Block If No Rule Exists"
+  },
+  {
+   "description": "Roles that can bypass blocking when submitting documents with severe anomalies",
+   "fieldname": "bypass_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Bypass Roles",
+   "options": "MPC Bypass Role"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-01-20 16:00:00",
+ "modified_by": "Administrator",
+ "module": "Material Price Control",
+ "name": "Cost Valuation Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
