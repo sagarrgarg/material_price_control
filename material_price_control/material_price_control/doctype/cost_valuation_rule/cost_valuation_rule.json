@@ -1,24 +1,28 @@
 {
  "actions": [],
  "allow_import": 1,
- "autoname": "hash",
+ "autoname": "autoname",
  "creation": "2026-01-20 16:00:00",
  "doctype": "DocType",
  "document_type": "Setup",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "enabled",
+  "section_break_scope",
   "rule_for",
   "item_code",
   "item_group",
+  "warehouse",
+  "column_break_scope",
+  "from_date",
+  "to_date",
   "section_break_1",
   "expected_rate",
   "allowed_variance_pct",
   "column_break_2",
   "min_rate",
-  "max_rate",
-  "section_break_3",
-  "enabled"
+  "max_rate"
  ],
  "fields": [
   {
@@ -43,6 +47,29 @@
    "in_list_view": 1,
    "label": "Item Group",
    "options": "Item Group"
+  },
+  {
+   "description": "Optional - Leave blank for all warehouses",
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "column_break_scope",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Optional - Leave blank for perpetual rule (no date restriction)",
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date"
+  },
+  {
+   "description": "Optional - Leave blank for perpetual rule (no date restriction)",
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date"
   },
   {
    "fieldname": "section_break_1",
@@ -78,14 +105,15 @@
    "description": "Optional hard ceiling - any rate above this is severe"
   },
   {
-   "fieldname": "section_break_3",
-   "fieldtype": "Section Break"
-  },
-  {
    "default": "1",
    "fieldname": "enabled",
    "fieldtype": "Check",
    "label": "Enabled"
+  },
+  {
+   "fieldname": "section_break_scope",
+   "fieldtype": "Section Break",
+   "label": "Rule Scope"
   }
  ],
  "index_web_pages_for_search": 1,
@@ -94,7 +122,7 @@
  "modified_by": "Administrator",
  "module": "Material Price Control",
  "name": "Cost Valuation Rule",
- "naming_rule": "By \"Naming Series\" field",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {

@@ -1,0 +1,20 @@
+[
+ {
+  "doctype": "Dashboard Chart",
+  "name": "Top Items with Anomalies",
+  "chart_name": "Top Items with Anomalies",
+  "chart_type": "Group By",
+  "document_type": "Cost Anomaly Log",
+  "group_by_type": "Count",
+  "group_by_based_on": "item_code",
+  "number_of_groups": 10,
+  "filters_json": "[[\"Cost Anomaly Log\", \"status\", \"=\", \"Open\", false]]",
+  "type": "Bar",
+  "is_public": 1,
+  "is_standard": 1,
+  "module": "Material Price Control",
+  "color": "#ff5858",
+  "timeseries": 0,
+  "timespan": "Last Month"
+ }
+]

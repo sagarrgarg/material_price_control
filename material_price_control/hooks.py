@@ -28,6 +28,19 @@ app_license = "mit"
 # app_include_css = "/assets/material_price_control/css/material_price_control.css"
 app_include_js = "/assets/material_price_control/js/echarts.min.js"
 
+# Fixtures
+# --------
+fixtures = [
+	{
+		"dt": "Number Card",
+		"filters": [["module", "=", "Material Price Control"]]
+	},
+	{
+		"dt": "Dashboard Chart",
+		"filters": [["module", "=", "Material Price Control"]]
+	}
+]
+
 # include js, css files in header of web template
 # web_include_css = "/assets/material_price_control/css/material_price_control.css"
 # web_include_js = "/assets/material_price_control/js/material_price_control.js"

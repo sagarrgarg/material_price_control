@@ -1,0 +1,59 @@
+[
+ {
+  "doctype": "Number Card",
+  "name": "Open Anomalies",
+  "label": "Open Anomalies",
+  "document_type": "Cost Anomaly Log",
+  "function": "Count",
+  "is_public": 1,
+  "is_standard": 1,
+  "module": "Material Price Control",
+  "filters_json": "{\"status\":[\"=\",\"Open\"]}",
+  "show_percentage_stats": 0,
+  "color": "#ff5858",
+  "type": "Document Type"
+ },
+ {
+  "doctype": "Number Card",
+  "name": "Severe Anomalies",
+  "label": "Severe Anomalies",
+  "document_type": "Cost Anomaly Log",
+  "function": "Count",
+  "is_public": 1,
+  "is_standard": 1,
+  "module": "Material Price Control",
+  "filters_json": "{\"status\":[\"=\",\"Open\"],\"severity\":[\"=\",\"Severe\"]}",
+  "show_percentage_stats": 0,
+  "color": "#d32f2f",
+  "type": "Document Type"
+ },
+ {
+  "doctype": "Number Card",
+  "name": "Active Rules",
+  "label": "Active Rules",
+  "document_type": "Cost Valuation Rule",
+  "function": "Count",
+  "is_public": 1,
+  "is_standard": 1,
+  "module": "Material Price Control",
+  "filters_json": "{\"enabled\":[\"=\",1]}",
+  "show_percentage_stats": 0,
+  "color": "#4caf50",
+  "type": "Document Type"
+ },
+ {
+  "doctype": "Number Card",
+  "name": "Items Without Rules",
+  "label": "Items Without Rules",
+  "document_type": "Item",
+  "report_function": "Sum",
+  "function": "Count",
+  "is_public": 1,
+  "is_standard": 1,
+  "module": "Material Price Control",
+  "method": "material_price_control.material_price_control.dashboard.get_items_without_rules_count",
+  "show_percentage_stats": 0,
+  "color": "#ff9800",
+  "type": "Custom"
+ }
+]

@@ -1,7 +1,12 @@
 {
  "app": "material_price_control",
- "charts": [],
- "content": "[{\"id\":\"shortcut_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"id\":\"shortcut_settings\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cost Valuation Settings\",\"col\":3}},{\"id\":\"shortcut_rules\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cost Valuation Rule\",\"col\":3}},{\"id\":\"shortcut_logs\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cost Anomaly Log\",\"col\":3}},{\"id\":\"shortcut_chart\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Control Chart\",\"col\":3}},{\"id\":\"shortcut_report\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Historical Anomaly Finder\",\"col\":3}},{\"id\":\"spacer_1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"masters_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Masters &amp; Reports</b></span>\",\"col\":12}},{\"id\":\"card_config\",\"type\":\"card\",\"data\":{\"card_name\":\"Configuration\",\"col\":4}},{\"id\":\"card_logs\",\"type\":\"card\",\"data\":{\"card_name\":\"Anomaly Logs\",\"col\":4}},{\"id\":\"card_reports\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports & Tools\",\"col\":4}}]",
+ "charts": [
+  {
+   "chart_name": "Top Items with Anomalies",
+   "label": "Top Items with Anomalies"
+  }
+ ],
+ "content": "[{\"id\":\"dashboard_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Dashboard</b></span>\",\"col\":12}},{\"id\":\"number_cards_row\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Open Anomalies\",\"col\":4}},{\"id\":\"number_cards_row_2\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Severe Anomalies\",\"col\":4}},{\"id\":\"number_cards_row_3\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Active Rules\",\"col\":4}},{\"id\":\"chart_section\",\"type\":\"chart\",\"data\":{\"chart_name\":\"Top Items with Anomalies\",\"col\":12}},{\"id\":\"spacer_1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"shortcut_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Access</b></span>\",\"col\":12}},{\"id\":\"shortcut_settings\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Settings\",\"col\":2}},{\"id\":\"shortcut_rules\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Rules\",\"col\":2}},{\"id\":\"shortcut_logs\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Open Anomalies\",\"col\":2}},{\"id\":\"shortcut_chart\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Control Chart\",\"col\":2}},{\"id\":\"shortcut_stats\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Item Statistics\",\"col\":2}},{\"id\":\"shortcut_report\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Historical Finder\",\"col\":2}},{\"id\":\"spacer_2\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"masters_header\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Masters &amp; Reports</b></span>\",\"col\":12}},{\"id\":\"card_config\",\"type\":\"card\",\"data\":{\"card_name\":\"Configuration\",\"col\":4}},{\"id\":\"card_logs\",\"type\":\"card\",\"data\":{\"card_name\":\"Anomaly Logs\",\"col\":4}},{\"id\":\"card_reports\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports & Analytics\",\"col\":4}}]",
  "creation": "2026-01-20 16:00:00.000000",
  "custom_blocks": [],
  "docstatus": 0,
@@ -30,7 +35,8 @@
    "link_to": "Cost Valuation Settings",
    "link_type": "DocType",
    "onboard": 1,
-   "type": "Link"
+   "type": "Link",
+   "description": "Global settings for anomaly detection"
   },
   {
    "dependencies": "",
@@ -41,7 +47,8 @@
    "link_to": "Cost Valuation Rule",
    "link_type": "DocType",
    "onboard": 1,
-   "type": "Link"
+   "type": "Link",
+   "description": "Define expected rates for items"
   },
   {
    "hidden": 0,
@@ -60,12 +67,13 @@
    "link_to": "Cost Anomaly Log",
    "link_type": "DocType",
    "onboard": 1,
-   "type": "Link"
+   "type": "Link",
+   "description": "All detected rate anomalies"
   },
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Reports & Tools",
+   "label": "Reports & Analytics",
    "link_count": 0,
    "onboard": 0,
    "type": "Card Break"
@@ -79,7 +87,20 @@
    "link_to": "Historical Anomaly Finder",
    "link_type": "Report",
    "onboard": 1,
-   "type": "Link"
+   "type": "Link",
+   "description": "Find anomalies in past transactions"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Item Valuation Statistics",
+   "link_count": 0,
+   "link_to": "Item Valuation Statistics",
+   "link_type": "Report",
+   "onboard": 1,
+   "type": "Link",
+   "description": "Statistical analysis of item prices"
   },
   {
    "dependencies": "",
@@ -90,14 +111,28 @@
    "link_to": "cost-valuation-chart",
    "link_type": "Page",
    "onboard": 1,
-   "type": "Link"
+   "type": "Link",
+   "description": "Visual price trend analysis"
   }
  ],
- "modified": "2026-01-24 16:00:00.000000",
+ "modified": "2026-01-25 16:00:00.000000",
  "modified_by": "Administrator",
  "module": "Material Price Control",
  "name": "Cost Valuation",
- "number_cards": [],
+ "number_cards": [
+  {
+   "label": "Open Anomalies",
+   "number_card_name": "Open Anomalies"
+  },
+  {
+   "label": "Severe Anomalies",
+   "number_card_name": "Severe Anomalies"
+  },
+  {
+   "label": "Active Rules",
+   "number_card_name": "Active Rules"
+  }
+ ],
  "owner": "Administrator",
  "parent_page": "",
  "public": 1,
@@ -109,14 +144,14 @@
   {
    "color": "Blue",
    "doc_view": "",
-   "label": "Cost Valuation Settings",
+   "label": "Settings",
    "link_to": "Cost Valuation Settings",
    "type": "DocType"
   },
   {
    "color": "Green",
    "doc_view": "List",
-   "label": "Cost Valuation Rule",
+   "label": "Rules",
    "link_to": "Cost Valuation Rule",
    "stats_filter": "{\"enabled\":[\"=\",1]}",
    "type": "DocType"
@@ -124,7 +159,7 @@
   {
    "color": "Orange",
    "doc_view": "List",
-   "label": "Cost Anomaly Log",
+   "label": "Open Anomalies",
    "link_to": "Cost Anomaly Log",
    "stats_filter": "{\"status\":[\"=\",\"Open\"]}",
    "type": "DocType"
@@ -136,8 +171,14 @@
    "type": "Page"
   },
   {
+   "color": "Purple",
+   "label": "Item Statistics",
+   "link_to": "Item Valuation Statistics",
+   "type": "Report"
+  },
+  {
    "color": "Grey",
-   "label": "Historical Anomaly Finder",
+   "label": "Historical Finder",
    "link_to": "Historical Anomaly Finder",
    "type": "Report"
   }

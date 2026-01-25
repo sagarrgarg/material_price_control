@@ -135,7 +135,11 @@ def check_item_rate(doc, item_row, incoming_rate, voucher_type, settings):
 		voucher_type: Type of voucher (Purchase Receipt, Purchase Invoice, Stock Entry)
 		settings: Cost Valuation Settings document
 	"""
-	expected = get_expected_rate(item_row.item_code)
+	# Get warehouse and posting date for rule resolution
+	warehouse = getattr(item_row, 'warehouse', None) or getattr(item_row, 't_warehouse', None)
+	posting_date = getattr(doc, 'posting_date', None) or nowdate()
+	
+	expected = get_expected_rate(item_row.item_code, warehouse=warehouse, posting_date=posting_date)
 
 	# Handle case when no rule exists
 	if not expected:
@@ -250,66 +254,140 @@ def throw_anomaly_error(item_row, incoming_rate, expected, variance_pct,
 	frappe.throw(msg, title=_("Cost Valuation Anomaly - Blocked"))
 
 
-def get_expected_rate(item_code):
+def get_expected_rate(item_code, warehouse=None, posting_date=None):
 	"""
-	Get expected rate for an item.
+	Get expected rate for an item with date and warehouse context.
 	
-	Resolution order:
-	1. Item-level rule (exact match)
-	2. Item Group rule
-	3. None (no expectation)
+	Resolution order (priority high to low):
+	1. Item rule with matching warehouse + valid date range
+	2. Item rule with no warehouse + valid date range
+	3. Item fallback rule (no dates) with matching warehouse
+	4. Item fallback rule (no dates) with no warehouse
+	5. Same hierarchy for Item Group
 	
 	Args:
 		item_code: The item code to look up
+		warehouse: Optional warehouse for warehouse-specific rules
+		posting_date: Optional posting date for date-range rules (defaults to today)
 		
 	Returns:
-		dict with expected_rate, allowed_variance_pct, min_rate, max_rate or None
+		dict with expected_rate, allowed_variance_pct, min_rate, max_rate, rule_source, rule_name or None
 	"""
-	# Check item-level rule first
-	item_rule = frappe.db.get_value(
-		"Cost Valuation Rule",
-		{
-			"rule_for": "Item",
-			"item_code": item_code,
-			"enabled": 1
-		},
-		["expected_rate", "allowed_variance_pct", "min_rate", "max_rate"],
-		as_dict=True
-	)
-
+	if not posting_date:
+		posting_date = nowdate()
+	
+	posting_date = getdate(posting_date)
+	
+	# Try Item-level rules first
+	item_rule = _find_matching_rule("Item", item_code, warehouse, posting_date)
 	if item_rule:
-		return {
-			"expected_rate": flt(item_rule.expected_rate),
-			"allowed_variance_pct": flt(item_rule.allowed_variance_pct) if item_rule.allowed_variance_pct else None,
-			"min_rate": flt(item_rule.min_rate) if item_rule.min_rate else None,
-			"max_rate": flt(item_rule.max_rate) if item_rule.max_rate else None,
-			"rule_source": "Item"
-		}
-
-	# Check item group rule
+		return _format_rule_result(item_rule, "Item")
+	
+	# Try Item Group rules
 	item_group = frappe.db.get_value("Item", item_code, "item_group")
 	if item_group:
-		group_rule = frappe.db.get_value(
-			"Cost Valuation Rule",
-			{
-				"rule_for": "Item Group",
-				"item_group": item_group,
-				"enabled": 1
-			},
-			["expected_rate", "allowed_variance_pct", "min_rate", "max_rate"],
-			as_dict=True
-		)
-
+		group_rule = _find_matching_rule("Item Group", item_group, warehouse, posting_date)
 		if group_rule:
-			return {
-				"expected_rate": flt(group_rule.expected_rate),
-				"allowed_variance_pct": flt(group_rule.allowed_variance_pct) if group_rule.allowed_variance_pct else None,
-				"min_rate": flt(group_rule.min_rate) if group_rule.min_rate else None,
-				"max_rate": flt(group_rule.max_rate) if group_rule.max_rate else None,
-				"rule_source": "Item Group"
-			}
-
+			return _format_rule_result(group_rule, "Item Group")
+	
 	return None
+
+
+def _find_matching_rule(rule_for, target, warehouse, posting_date):
+	"""
+	Find the best matching rule for the given target.
+	
+	Priority:
+	1. Dated rule with warehouse match
+	2. Dated rule without warehouse
+	3. Fallback (perpetual) rule with warehouse match
+	4. Fallback (perpetual) rule without warehouse
+	
+	Args:
+		rule_for: "Item" or "Item Group"
+		target: item_code or item_group
+		warehouse: warehouse to match (or None)
+		posting_date: date to check against rule date range
+		
+	Returns:
+		Rule dict or None
+	"""
+	# Build base filter
+	base_filter = {
+		"enabled": 1,
+		"rule_for": rule_for
+	}
+	
+	if rule_for == "Item":
+		base_filter["item_code"] = target
+	else:
+		base_filter["item_group"] = target
+	
+	# Get all matching rules
+	rules = frappe.get_all(
+		"Cost Valuation Rule",
+		filters=base_filter,
+		fields=["name", "expected_rate", "allowed_variance_pct", "min_rate", "max_rate",
+		        "warehouse", "from_date", "to_date"]
+	)
+	
+	if not rules:
+		return None
+	
+	# Categorize rules
+	dated_with_warehouse = []
+	dated_no_warehouse = []
+	fallback_with_warehouse = []
+	fallback_no_warehouse = []
+	
+	for rule in rules:
+		is_dated = rule.from_date or rule.to_date
+		has_warehouse = bool(rule.warehouse)
+		warehouse_match = (rule.warehouse == warehouse) if has_warehouse else False
+		
+		# Check if date is in range
+		if is_dated:
+			if not _date_in_range(posting_date, rule.from_date, rule.to_date):
+				continue
+			if warehouse and warehouse_match:
+				dated_with_warehouse.append(rule)
+			elif not has_warehouse:
+				dated_no_warehouse.append(rule)
+		else:
+			# Fallback rule
+			if warehouse and warehouse_match:
+				fallback_with_warehouse.append(rule)
+			elif not has_warehouse:
+				fallback_no_warehouse.append(rule)
+	
+	# Return first match in priority order
+	for rule_list in [dated_with_warehouse, dated_no_warehouse, 
+	                  fallback_with_warehouse, fallback_no_warehouse]:
+		if rule_list:
+			return rule_list[0]
+	
+	return None
+
+
+def _date_in_range(check_date, from_date, to_date):
+	"""Check if check_date is within the from_date to to_date range."""
+	if from_date and getdate(from_date) > check_date:
+		return False
+	if to_date and getdate(to_date) < check_date:
+		return False
+	return True
+
+
+def _format_rule_result(rule, rule_source):
+	"""Format a rule dict into the expected return format."""
+	return {
+		"expected_rate": flt(rule.expected_rate),
+		"allowed_variance_pct": flt(rule.allowed_variance_pct) if rule.allowed_variance_pct else None,
+		"min_rate": flt(rule.min_rate) if rule.min_rate else None,
+		"max_rate": flt(rule.max_rate) if rule.max_rate else None,
+		"rule_source": rule_source,
+		"rule_name": rule.name
+	}
 
 
 def calculate_variance(incoming_rate, expected_rate):
@@ -383,6 +461,68 @@ def get_chart_settings():
 	settings = get_settings()
 	return {
 		"include_internal_suppliers": getattr(settings, 'include_internal_suppliers', 0) if settings else 0
+	}
+
+
+@frappe.whitelist()
+def get_item_statistics(item_code, warehouse=None, from_date=None, to_date=None, months=6):
+	"""
+	Get historical statistics for an item.
+	
+	This API is used by the Cost Valuation Rule form to show historical
+	mean, std dev, etc. to help users set appropriate expected rates.
+	
+	Args:
+		item_code: The item code to get statistics for
+		warehouse: Optional warehouse filter
+		from_date: Start date for analysis (optional, defaults to months ago)
+		to_date: End date for analysis (optional, defaults to today)
+		months: Number of months of history if dates not provided (default 6)
+		
+	Returns:
+		dict with:
+		- item_code: The item code
+		- item_name: The item name
+		- statistics: {mean, rms, std_dev, ucl, lcl, count}
+		- current_rule: Current rule details if exists
+	"""
+	if not item_code:
+		return {"error": "Item code is required"}
+	
+	# Get item name
+	item_name = frappe.db.get_value("Item", item_code, "item_name") or item_code
+	
+	# Calculate date range - use provided dates or fall back to months
+	if not to_date:
+		to_date = nowdate()
+	if not from_date:
+		from_date = add_months(getdate(to_date), -frappe.utils.cint(months))
+	
+	# Get settings for internal supplier filtering
+	settings = get_settings()
+	include_internal = getattr(settings, 'include_internal_suppliers', 0) if settings else 0
+	
+	# Get incoming rates - reuse existing function
+	data_points = get_incoming_rates(item_code, from_date, to_date, include_internal)
+	
+	# Filter by warehouse if specified
+	if warehouse:
+		data_points = [dp for dp in data_points if dp.get("warehouse") == warehouse]
+	
+	# Calculate statistics
+	statistics = calculate_statistics(data_points)
+	
+	# Get current rule
+	current_rule = get_expected_rate(item_code, warehouse=warehouse, posting_date=to_date)
+	
+	return {
+		"item_code": item_code,
+		"item_name": item_name,
+		"warehouse": warehouse,
+		"from_date": str(from_date),
+		"to_date": str(to_date),
+		"statistics": statistics,
+		"current_rule": current_rule
 	}
 
 
