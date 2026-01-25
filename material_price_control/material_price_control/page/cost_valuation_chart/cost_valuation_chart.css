@@ -33,6 +33,49 @@
 	width: 100%;
 }
 
+/* Method Description Section */
+.method-section {
+	background: var(--card-bg);
+	border-radius: var(--border-radius-lg);
+	border: 1px solid var(--border-color);
+}
+
+.method-header {
+	background: var(--subtle-fg);
+	border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+}
+
+.method-header:hover {
+	background: var(--control-bg);
+}
+
+.method-body {
+	background: var(--card-bg);
+	font-size: 13px;
+}
+
+.method-body h6 {
+	color: var(--heading-color);
+	font-size: 13px;
+	margin-bottom: 8px;
+}
+
+.method-body ul {
+	padding-left: 20px;
+	margin-bottom: 0;
+}
+
+.method-body ul li {
+	margin-bottom: 4px;
+}
+
+.method-body code {
+	background: var(--control-bg);
+	padding: 1px 4px;
+	border-radius: 3px;
+	font-size: 12px;
+}
+
 /* Dashboard Section */
 .dashboard-section {
 	background: var(--card-bg);

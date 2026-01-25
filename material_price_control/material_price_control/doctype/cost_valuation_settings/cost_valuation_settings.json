@@ -11,6 +11,7 @@
  "engine": "InnoDB",
  "field_order": [
   "enabled",
+  "include_internal_suppliers",
   "column_break_1",
   "default_variance_pct",
   "severe_multiplier",
@@ -26,6 +27,14 @@
    "fieldtype": "Check",
    "label": "Enabled",
    "reqd": 1
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.enabled",
+   "description": "If unchecked, transactions from internal suppliers (is_internal_supplier or is_bns_internal_supplier) are skipped during validation",
+   "fieldname": "include_internal_suppliers",
+   "fieldtype": "Check",
+   "label": "Include Internal Suppliers"
   },
   {
    "fieldname": "column_break_1",

@@ -27,11 +27,30 @@ class CostValuationChart {
 		this.page = wrapper.page;
 		this.chart = null;
 		this.chartData = null;
+		this.settings = {};
 		
 		this.setupPage();
 		this.setupFilters();
 		this.bindEvents();
+		this.loadSettings();
 		this.loadDashboard();
+	}
+
+	async loadSettings() {
+		// Load settings to get default for include_internal_suppliers
+		try {
+			const response = await frappe.call({
+				method: "material_price_control.material_price_control.guard.get_chart_settings"
+			});
+			if (response.message) {
+				this.settings = response.message;
+				// Set checkbox to match setting
+				const checkbox = this.page.main.find("#include-internal-suppliers");
+				checkbox.prop("checked", this.settings.include_internal_suppliers ? true : false);
+			}
+		} catch (error) {
+			console.error("Error loading settings:", error);
+		}
 	}
 
 	setupPage() {
@@ -41,7 +60,7 @@ class CostValuationChart {
 				<!-- Filters Section -->
 				<div class="filter-section frappe-card mb-4 p-3">
 					<div class="row align-items-end">
-						<div class="col-md-4">
+						<div class="col-md-3">
 							<div class="form-group mb-0">
 								<label class="control-label">${__("Item")} <span class="text-danger">*</span></label>
 								<div id="item-filter"></div>
@@ -59,10 +78,69 @@ class CostValuationChart {
 								<div id="to-date-filter"></div>
 							</div>
 						</div>
+						<div class="col-md-3">
+							<div class="form-group mb-0">
+								<div class="custom-control custom-checkbox mt-4">
+									<input type="checkbox" class="custom-control-input" id="include-internal-suppliers">
+									<label class="custom-control-label" for="include-internal-suppliers">
+										${__("Include Internal Suppliers")}
+									</label>
+								</div>
+							</div>
+						</div>
 						<div class="col-md-2">
 							<button class="btn btn-primary btn-sm btn-block" id="refresh-chart-btn">
 								<i class="fa fa-refresh"></i> ${__("Refresh")}
 							</button>
+						</div>
+					</div>
+				</div>
+
+				<!-- Method Description (Collapsible) -->
+				<div class="method-section frappe-card mb-4">
+					<div class="method-header p-3" style="cursor: pointer;" id="toggle-method-desc">
+						<h6 class="mb-0 d-flex justify-content-between align-items-center">
+							<span><i class="fa fa-info-circle text-info"></i> ${__("How This Chart Works")}</span>
+							<i class="fa fa-chevron-down" id="method-chevron"></i>
+						</h6>
+					</div>
+					<div class="method-body p-3 border-top" id="method-description" style="display: none;">
+						<div class="row">
+							<div class="col-md-6">
+								<h6 class="font-weight-bold">${__("Data Source")}</h6>
+								<ul class="small mb-3">
+									<li><strong>${__("Source")}:</strong> Stock Ledger Entry (incoming qty > 0)</li>
+									<li><strong>${__("Vouchers")}:</strong> Purchase Receipt, Purchase Invoice, Stock Entry</li>
+									<li><strong>${__("Rate")}:</strong> <code>incoming_rate</code>, fallback to <code>|stock_value_difference / actual_qty|</code></li>
+								</ul>
+								
+								<h6 class="font-weight-bold">${__("Statistical Measures")}</h6>
+								<ul class="small mb-3">
+									<li><strong>${__("Mean")} (μ):</strong> Σx / n</li>
+									<li><strong>${__("RMS")}:</strong> √(Σx² / n)</li>
+									<li><strong>${__("Std Dev")} (σ):</strong> √(Σ(x-μ)² / n)</li>
+									<li><strong>${__("UCL")}:</strong> μ + 2σ (Upper Control Limit)</li>
+									<li><strong>${__("LCL")}:</strong> μ - 2σ (Lower Control Limit, min 0)</li>
+								</ul>
+							</div>
+							<div class="col-md-6">
+								<h6 class="font-weight-bold">${__("Variance Calculation")}</h6>
+								<ul class="small mb-3">
+									<li><strong>${__("Reference Rate")}:</strong> Rule expected rate (if exists), otherwise Mean</li>
+									<li><strong>${__("Variance Amount")} (Δ₹):</strong> rate - reference_rate</li>
+									<li><strong>${__("Variance Percent")} (|Δ%|):</strong> |rate - reference| / reference × 100</li>
+								</ul>
+								
+								<h6 class="font-weight-bold">${__("Internal Supplier Filter")}</h6>
+								<p class="small mb-0">
+									Purchase Receipts and Purchase Invoices from suppliers marked as 
+									<code>is_internal_supplier</code> or <code>is_bns_internal_supplier</code> are 
+									filtered based on the <strong>Include Internal Suppliers</strong> setting in 
+									<a href="/app/cost-valuation-settings" target="_blank">Cost Valuation Settings</a>. 
+									This setting also controls whether validation is performed during document submission.
+									The checkbox above reflects the current setting value.
+								</p>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -170,6 +248,19 @@ class CostValuationChart {
 				this.refreshChart();
 			}
 		});
+
+		// Include internal suppliers checkbox
+		this.page.main.find("#include-internal-suppliers").on("change", () => {
+			this.refreshChart();
+		});
+
+		// Toggle method description
+		this.page.main.find("#toggle-method-desc").on("click", () => {
+			const body = this.page.main.find("#method-description");
+			const chevron = this.page.main.find("#method-chevron");
+			body.slideToggle(200);
+			chevron.toggleClass("fa-chevron-down fa-chevron-up");
+		});
 	}
 
 	async loadDashboard() {
@@ -251,6 +342,7 @@ class CostValuationChart {
 		const itemCode = this.itemField.get_value();
 		const fromDate = this.fromDateField.get_value();
 		const toDate = this.toDateField.get_value();
+		const includeInternal = this.page.main.find("#include-internal-suppliers").is(":checked") ? 1 : 0;
 
 		if (!itemCode) {
 			$("#control-chart").html(`
@@ -282,7 +374,8 @@ class CostValuationChart {
 				args: {
 					item_code: itemCode,
 					from_date: fromDate,
-					to_date: toDate
+					to_date: toDate,
+					include_internal_suppliers: includeInternal
 				}
 			});
 
@@ -350,22 +443,27 @@ class CostValuationChart {
 			const point = [dp.date, dp.rate];
 			dates.push(dp.date);
 			
+			// Build data object with all fields for tooltip
+			const dataObj = {
+				value: point,
+				voucher_type: dp.voucher_type,
+				voucher_no: dp.voucher_no,
+				supplier: dp.supplier,
+				is_internal_supplier: dp.is_internal_supplier,
+				reference_rate: dp.reference_rate,
+				reference_source: dp.reference_source,
+				variance_amount: dp.variance_amount,
+				variance_pct: dp.variance_pct,
+				severity: dp.severity
+			};
+			
 			if (dp.is_anomaly) {
-				anomalyData.push({
-					value: point,
-					itemStyle: {
-						color: dp.severity === "Severe" ? "#ee6666" : "#fac858"
-					},
-					voucher_type: dp.voucher_type,
-					voucher_no: dp.voucher_no,
-					severity: dp.severity
-				});
+				dataObj.itemStyle = {
+					color: dp.severity === "Severe" ? "#ee6666" : "#fac858"
+				};
+				anomalyData.push(dataObj);
 			} else {
-				normalData.push({
-					value: point,
-					voucher_type: dp.voucher_type,
-					voucher_no: dp.voucher_no
-				});
+				normalData.push(dataObj);
 			}
 		});
 
@@ -375,7 +473,7 @@ class CostValuationChart {
 		const minDate = dates[0];
 		const maxDate = dates[dates.length - 1];
 
-		// Build series
+		// Build series - include both Mean and RMS lines
 		const series = [
 			// Normal points
 			{
@@ -399,6 +497,14 @@ class CostValuationChart {
 				type: "line",
 				data: [[minDate, stats.mean], [maxDate, stats.mean]],
 				lineStyle: { color: "#91cc75", width: 2 },
+				symbol: "none"
+			},
+			// RMS line
+			{
+				name: __("RMS"),
+				type: "line",
+				data: [[minDate, stats.rms], [maxDate, stats.rms]],
+				lineStyle: { color: "#9b59b6", width: 2, type: "dotted" },
 				symbol: "none"
 			},
 			// UCL line
@@ -464,11 +570,28 @@ class CostValuationChart {
 					if (params.seriesType === "scatter") {
 						const d = params.data;
 						let html = `<strong>${params.value[0]}</strong><br/>`;
-						html += `${__("Rate")}: ₹${params.value[1].toFixed(2)}<br/>`;
-						if (d.voucher_type) {
-							html += `${__("Voucher")}: ${d.voucher_type}<br/>`;
-							html += `${__("No")}: ${d.voucher_no}<br/>`;
+						html += `<b>${__("Rate")}:</b> ₹${params.value[1].toFixed(2)}<br/>`;
+						
+						// Show reference and variance
+						if (d.reference_rate !== null) {
+							html += `<b>${__("Reference")}:</b> ₹${d.reference_rate.toFixed(2)} (${d.reference_source})<br/>`;
+							const sign = d.variance_amount >= 0 ? "+" : "";
+							html += `<b>${__("Variance")}:</b> ${sign}₹${d.variance_amount.toFixed(2)} (${d.variance_pct.toFixed(1)}%)<br/>`;
 						}
+						
+						// Show supplier info for PR/PI
+						if (d.supplier) {
+							html += `<b>${__("Supplier")}:</b> ${d.supplier}`;
+							if (d.is_internal_supplier) {
+								html += ` <span style="color: #9b59b6;">(Internal)</span>`;
+							}
+							html += `<br/>`;
+						}
+						
+						if (d.voucher_type) {
+							html += `<b>${__("Voucher")}:</b> ${d.voucher_type} / ${d.voucher_no}<br/>`;
+						}
+						
 						if (d.severity) {
 							const color = d.severity === "Severe" ? "#ee6666" : "#fac858";
 							html += `<span style="color: ${color}; font-weight: bold;">${__("Status")}: ${d.severity}</span>`;
@@ -539,7 +662,8 @@ class CostValuationChart {
 			<div class="mb-1">
 				<span class="badge badge-secondary mr-2">${__("Points")}: ${stats.count}</span>
 				<span class="badge badge-success mr-2">${__("Mean")}: ₹${stats.mean}</span>
-				<span class="badge badge-info mr-2">${__("Std Dev")}: ₹${stats.std_dev}</span>
+				<span class="badge mr-2" style="background-color: #9b59b6; color: white;">${__("RMS")}: ₹${stats.rms}</span>
+				<span class="badge badge-info mr-2">${__("σ")}: ₹${stats.std_dev}</span>
 				<span class="badge badge-warning mr-2">${__("UCL")}: ₹${stats.ucl}</span>
 				<span class="badge badge-warning">${__("LCL")}: ₹${stats.lcl}</span>
 			</div>
@@ -583,8 +707,11 @@ class CostValuationChart {
 						<tr>
 							<th>${__("Date")}</th>
 							<th>${__("Rate (₹)")}</th>
-							<th>${__("Voucher Type")}</th>
-							<th>${__("Voucher No")}</th>
+							<th>${__("Reference")}</th>
+							<th>${__("Δ₹")}</th>
+							<th>${__("|Δ%|")}</th>
+							<th>${__("Supplier")}</th>
+							<th>${__("Voucher")}</th>
 							<th>${__("Warehouse")}</th>
 							<th>${__("Status")}</th>
 						</tr>
@@ -603,12 +730,28 @@ class CostValuationChart {
 			
 			const voucherSlug = dp.voucher_type.toLowerCase().replace(/ /g, "-");
 			
+			// Format variance
+			const varianceSign = dp.variance_amount >= 0 ? "+" : "";
+			const varianceAmount = dp.variance_amount !== null ? `${varianceSign}₹${dp.variance_amount.toFixed(2)}` : "-";
+			const variancePct = dp.variance_pct !== null ? `${dp.variance_pct.toFixed(1)}%` : "-";
+			const refRate = dp.reference_rate !== null ? `₹${dp.reference_rate.toFixed(2)}` : "-";
+			const refSource = dp.reference_source ? `<small class="text-muted">(${dp.reference_source})</small>` : "";
+			
+			// Supplier with internal indicator
+			let supplierDisplay = dp.supplier || "-";
+			if (dp.is_internal_supplier) {
+				supplierDisplay = `${dp.supplier} <span class="badge badge-secondary">Int</span>`;
+			}
+			
 			html += `
 				<tr class="${statusClass}">
 					<td>${frappe.datetime.str_to_user(dp.date)}</td>
 					<td class="text-right">₹${dp.rate.toFixed(2)}</td>
-					<td>${dp.voucher_type}</td>
-					<td><a href="/app/${voucherSlug}/${dp.voucher_no}" target="_blank">${dp.voucher_no}</a></td>
+					<td class="text-right">${refRate} ${refSource}</td>
+					<td class="text-right">${varianceAmount}</td>
+					<td class="text-right">${variancePct}</td>
+					<td>${supplierDisplay}</td>
+					<td><a href="/app/${voucherSlug}/${dp.voucher_no}" target="_blank">${dp.voucher_type} / ${dp.voucher_no}</a></td>
 					<td>${dp.warehouse || "-"}</td>
 					<td class="text-center">${statusBadge}</td>
 				</tr>

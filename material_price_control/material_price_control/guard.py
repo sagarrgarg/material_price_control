@@ -14,11 +14,29 @@ from frappe import _
 from frappe.utils import flt, getdate, add_months, nowdate
 
 
+# =============================================================================
+# Utility Functions
+# =============================================================================
+
+def has_custom_field(doctype, fieldname):
+	"""Check if a custom field exists on a doctype."""
+	return frappe.db.exists("Custom Field", {"dt": doctype, "fieldname": fieldname})
+
+
+# =============================================================================
+# Validation Hooks (before_submit)
+# =============================================================================
+
 def check_purchase_receipt(doc, method):
 	"""Check Purchase Receipt items for valuation anomalies"""
 	settings = get_settings()
 	if not settings or not settings.enabled:
 		return
+
+	# Skip validation for internal suppliers if setting is disabled
+	if not getattr(settings, 'include_internal_suppliers', False):
+		if is_internal_supplier(doc.supplier):
+			return
 
 	for item in doc.items:
 		if flt(item.qty) <= 0:
@@ -40,6 +58,11 @@ def check_purchase_invoice(doc, method):
 	if not doc.update_stock:
 		return
 
+	# Skip validation for internal suppliers if setting is disabled
+	if not getattr(settings, 'include_internal_suppliers', False):
+		if is_internal_supplier(doc.supplier):
+			return
+
 	for item in doc.items:
 		if flt(item.qty) <= 0:
 			continue
@@ -49,6 +72,38 @@ def check_purchase_invoice(doc, method):
 			continue
 
 		check_item_rate(doc, item, incoming_rate, "Purchase Invoice", settings)
+
+
+def is_internal_supplier(supplier_name):
+	"""
+	Check if a supplier is marked as internal.
+	
+	Args:
+		supplier_name: The supplier name to check
+		
+	Returns:
+		True if supplier is internal (is_internal_supplier or is_bns_internal_supplier)
+	"""
+	if not supplier_name:
+		return False
+	
+	# Check if custom field exists
+	has_bns_field = has_custom_field("Supplier", "is_bns_internal_supplier")
+	
+	# Build field list
+	fields = ["is_internal_supplier"]
+	if has_bns_field:
+		fields.append("is_bns_internal_supplier")
+	
+	supplier_data = frappe.db.get_value("Supplier", supplier_name, fields, as_dict=True)
+	if not supplier_data:
+		return False
+	
+	is_internal = supplier_data.get("is_internal_supplier", 0)
+	if has_bns_field:
+		is_internal = is_internal or supplier_data.get("is_bns_internal_supplier", 0)
+	
+	return bool(is_internal)
 
 
 def check_stock_entry(doc, method):
@@ -317,6 +372,20 @@ def get_settings():
 		return None
 
 
+@frappe.whitelist()
+def get_chart_settings():
+	"""
+	Get settings relevant for the chart page.
+	
+	Returns:
+		dict with include_internal_suppliers flag
+	"""
+	settings = get_settings()
+	return {
+		"include_internal_suppliers": getattr(settings, 'include_internal_suppliers', 0) if settings else 0
+	}
+
+
 def can_bypass_block(settings):
 	"""
 	Check if current user has bypass role.
@@ -341,8 +410,83 @@ def can_bypass_block(settings):
 # Chart Data API
 # =============================================================================
 
+def get_supplier_internal_flags(supplier_names):
+	"""
+	Get internal supplier flags for a list of suppliers.
+	
+	Args:
+		supplier_names: List of supplier names
+		
+	Returns:
+		dict mapping supplier_name -> is_internal (bool)
+	"""
+	if not supplier_names:
+		return {}
+	
+	# Check if custom field exists
+	has_bns_field = has_custom_field("Supplier", "is_bns_internal_supplier")
+	
+	# Build field list
+	fields = ["name", "is_internal_supplier"]
+	if has_bns_field:
+		fields.append("is_bns_internal_supplier")
+	
+	suppliers = frappe.get_all(
+		"Supplier",
+		filters={"name": ["in", list(supplier_names)]},
+		fields=fields
+	)
+	
+	result = {}
+	for s in suppliers:
+		is_internal = s.get("is_internal_supplier", 0)
+		if has_bns_field:
+			is_internal = is_internal or s.get("is_bns_internal_supplier", 0)
+		result[s.name] = bool(is_internal)
+	
+	return result
+
+
+def get_voucher_suppliers(voucher_nos_by_type):
+	"""
+	Get supplier for each voucher.
+	
+	Args:
+		voucher_nos_by_type: dict with keys 'Purchase Receipt', 'Purchase Invoice'
+		                    and values as lists of voucher_nos
+		
+	Returns:
+		dict mapping (voucher_type, voucher_no) -> supplier_name
+	"""
+	result = {}
+	
+	# Purchase Receipts
+	pr_nos = voucher_nos_by_type.get("Purchase Receipt", [])
+	if pr_nos:
+		prs = frappe.get_all(
+			"Purchase Receipt",
+			filters={"name": ["in", pr_nos]},
+			fields=["name", "supplier"]
+		)
+		for pr in prs:
+			result[("Purchase Receipt", pr.name)] = pr.supplier
+	
+	# Purchase Invoices
+	pi_nos = voucher_nos_by_type.get("Purchase Invoice", [])
+	if pi_nos:
+		pis = frappe.get_all(
+			"Purchase Invoice",
+			filters={"name": ["in", pi_nos]},
+			fields=["name", "supplier"]
+		)
+		for pi in pis:
+			result[("Purchase Invoice", pi.name)] = pi.supplier
+	
+	return result
+
+
 @frappe.whitelist()
-def get_chart_data(item_code, from_date=None, to_date=None):
+def get_chart_data(item_code, from_date=None, to_date=None, include_internal_suppliers=0):
 	"""
 	Fetch incoming rates and calculate statistics for control chart.
 	
@@ -350,15 +494,21 @@ def get_chart_data(item_code, from_date=None, to_date=None):
 		item_code: The item to get chart data for
 		from_date: Start date (defaults to 6 months ago)
 		to_date: End date (defaults to today)
+		include_internal_suppliers: If 0 (default), exclude PR/PI from internal suppliers
 		
 	Returns:
 		dict with:
-		- data_points: [{date, rate, voucher_type, voucher_no, is_anomaly, severity}]
-		- statistics: {mean, rms, std_dev, ucl, lcl}
+		- data_points: [{date, rate, voucher_type, voucher_no, is_anomaly, severity,
+		                 supplier, is_internal_supplier, reference_rate, reference_source,
+		                 variance_amount, variance_pct}]
+		- statistics: {mean, rms, std_dev, ucl, lcl, count}
 		- rule: {expected_rate, allowed_variance_pct, min_rate, max_rate, rule_source}
 	"""
 	if not item_code:
 		return {"error": "Item code is required"}
+	
+	# Normalize boolean
+	include_internal = frappe.utils.cint(include_internal_suppliers)
 	
 	# Set default date range
 	if not to_date:
@@ -367,7 +517,7 @@ def get_chart_data(item_code, from_date=None, to_date=None):
 		from_date = add_months(getdate(to_date), -6)
 	
 	# Fetch incoming rates from Stock Ledger Entry
-	data_points = get_incoming_rates(item_code, from_date, to_date)
+	data_points = get_incoming_rates(item_code, from_date, to_date, include_internal)
 	
 	# Get rule for the item
 	rule = get_expected_rate(item_code)
@@ -378,8 +528,8 @@ def get_chart_data(item_code, from_date=None, to_date=None):
 	# Calculate statistics
 	statistics = calculate_statistics(data_points)
 	
-	# Flag anomalies based on rule and statistics
-	flag_anomalies(data_points, rule, statistics, settings)
+	# Enrich data points with variance and anomaly info
+	enrich_data_points(data_points, rule, statistics, settings)
 	
 	return {
 		"data_points": data_points,
@@ -391,7 +541,7 @@ def get_chart_data(item_code, from_date=None, to_date=None):
 	}
 
 
-def get_incoming_rates(item_code, from_date, to_date):
+def get_incoming_rates(item_code, from_date, to_date, include_internal_suppliers=0):
 	"""
 	Fetch incoming rates from Stock Ledger Entry.
 	
@@ -399,9 +549,10 @@ def get_incoming_rates(item_code, from_date, to_date):
 		item_code: The item code
 		from_date: Start date
 		to_date: End date
+		include_internal_suppliers: If 0, exclude PR/PI from internal suppliers
 		
 	Returns:
-		List of dicts with date, rate, voucher_type, voucher_no
+		List of dicts with date, rate, voucher_type, voucher_no, supplier, is_internal_supplier
 	"""
 	sle_data = frappe.db.sql("""
 		SELECT
@@ -427,6 +578,24 @@ def get_incoming_rates(item_code, from_date, to_date):
 		"to_date": to_date
 	}, as_dict=True)
 	
+	# Build voucher lists for supplier lookup (PR and PI only)
+	voucher_nos_by_type = {
+		"Purchase Receipt": [],
+		"Purchase Invoice": []
+	}
+	for sle in sle_data:
+		if sle.voucher_type in voucher_nos_by_type:
+			voucher_nos_by_type[sle.voucher_type].append(sle.voucher_no)
+	
+	# Get supplier for each voucher
+	voucher_suppliers = get_voucher_suppliers(voucher_nos_by_type)
+	
+	# Get all unique suppliers
+	all_suppliers = set(voucher_suppliers.values())
+	
+	# Get internal flags for all suppliers
+	supplier_internal_flags = get_supplier_internal_flags(all_suppliers)
+	
 	# Process and clean data
 	data_points = []
 	for sle in sle_data:
@@ -435,16 +604,36 @@ def get_incoming_rates(item_code, from_date, to_date):
 		if not rate and sle.stock_value_difference and sle.qty:
 			rate = abs(flt(sle.stock_value_difference) / flt(sle.qty))
 		
-		if rate > 0:
-			data_points.append({
-				"date": str(sle.date),
-				"rate": rate,
-				"voucher_type": sle.voucher_type,
-				"voucher_no": sle.voucher_no,
-				"warehouse": sle.warehouse,
-				"is_anomaly": False,
-				"severity": None
-			})
+		if rate <= 0:
+			continue
+		
+		# Get supplier info for PR/PI
+		supplier = None
+		is_internal = False
+		if sle.voucher_type in ("Purchase Receipt", "Purchase Invoice"):
+			supplier = voucher_suppliers.get((sle.voucher_type, sle.voucher_no))
+			if supplier:
+				is_internal = supplier_internal_flags.get(supplier, False)
+		
+		# Filter out internal suppliers if not included
+		if not include_internal_suppliers and is_internal:
+			continue
+		
+		data_points.append({
+			"date": str(sle.date),
+			"rate": rate,
+			"voucher_type": sle.voucher_type,
+			"voucher_no": sle.voucher_no,
+			"warehouse": sle.warehouse,
+			"supplier": supplier,
+			"is_internal_supplier": is_internal,
+			"is_anomaly": False,
+			"severity": None,
+			"reference_rate": None,
+			"reference_source": None,
+			"variance_amount": None,
+			"variance_pct": None
+		})
 	
 	return data_points
 
@@ -453,11 +642,18 @@ def calculate_statistics(data_points):
 	"""
 	Calculate statistical measures for control chart.
 	
+	Formulas:
+	- Mean (μ): Σx / n
+	- RMS (Root Mean Square): √(Σx² / n)
+	- Standard Deviation (σ): √(Σ(x-μ)² / n) [population std dev]
+	- UCL (Upper Control Limit): μ + 2σ
+	- LCL (Lower Control Limit): μ - 2σ (min 0)
+	
 	Args:
 		data_points: List of data point dicts with 'rate' field
 		
 	Returns:
-		dict with mean, rms, std_dev, ucl, lcl
+		dict with mean, rms, std_dev, ucl, lcl, count
 	"""
 	if not data_points:
 		return {
@@ -472,14 +668,14 @@ def calculate_statistics(data_points):
 	rates = [dp["rate"] for dp in data_points]
 	n = len(rates)
 	
-	# Mean (average)
+	# Mean (average): μ = Σx / n
 	mean = sum(rates) / n
 	
-	# RMS (Root Mean Square)
+	# RMS (Root Mean Square): √(Σx² / n)
 	sum_of_squares = sum(r * r for r in rates)
 	rms = math.sqrt(sum_of_squares / n)
 	
-	# Standard Deviation
+	# Standard Deviation (population): σ = √(Σ(x-μ)² / n)
 	if n > 1:
 		variance = sum((r - mean) ** 2 for r in rates) / n
 		std_dev = math.sqrt(variance)
@@ -500,14 +696,19 @@ def calculate_statistics(data_points):
 	}
 
 
-def flag_anomalies(data_points, rule, statistics, settings):
+def enrich_data_points(data_points, rule, statistics, settings):
 	"""
-	Flag data points that are anomalies based on rule or statistical limits.
+	Enrich data points with variance calculations and anomaly flags.
+	
+	Variance calculations:
+	- Reference rate: Rule expected_rate if available, else chart mean
+	- Variance amount (Δ₹): rate - reference_rate (signed)
+	- Variance percent (|Δ%|): |rate - reference_rate| / reference_rate × 100
 	
 	Args:
 		data_points: List of data point dicts (modified in place)
 		rule: Expected rate rule dict or None
-		statistics: Statistics dict with ucl, lcl
+		statistics: Statistics dict with mean, ucl, lcl
 		settings: Cost Valuation Settings
 	"""
 	if not data_points:
@@ -517,8 +718,33 @@ def flag_anomalies(data_points, rule, statistics, settings):
 	default_variance = flt(settings.default_variance_pct) if settings else 30
 	severe_multiplier = flt(settings.severe_multiplier) if settings else 2
 	
+	# Determine reference rate and source
+	if rule and flt(rule.get("expected_rate")) > 0:
+		reference_rate = flt(rule.get("expected_rate"))
+		reference_source = "Rule"
+	elif flt(statistics.get("mean")) > 0:
+		reference_rate = flt(statistics.get("mean"))
+		reference_source = "Mean"
+	else:
+		reference_rate = 0
+		reference_source = None
+	
 	for dp in data_points:
 		rate = dp["rate"]
+		
+		# Calculate variance
+		if reference_rate > 0:
+			dp["reference_rate"] = round(reference_rate, 2)
+			dp["reference_source"] = reference_source
+			dp["variance_amount"] = round(rate - reference_rate, 2)
+			dp["variance_pct"] = round(abs(rate - reference_rate) / reference_rate * 100, 2)
+		else:
+			dp["reference_rate"] = None
+			dp["reference_source"] = None
+			dp["variance_amount"] = None
+			dp["variance_pct"] = None
+		
+		# Determine anomaly status
 		is_anomaly = False
 		severity = None
 		
@@ -537,13 +763,11 @@ def flag_anomalies(data_points, rule, statistics, settings):
 			elif max_rate and rate > max_rate:
 				is_anomaly = True
 				severity = "Severe"
-			elif expected:
-				# Check variance
-				variance_pct = calculate_variance(rate, expected)
-				if variance_pct > severe_threshold:
+			elif expected and dp["variance_pct"] is not None:
+				if dp["variance_pct"] > severe_threshold:
 					is_anomaly = True
 					severity = "Severe"
-				elif variance_pct > allowed_variance:
+				elif dp["variance_pct"] > allowed_variance:
 					is_anomaly = True
 					severity = "Warning"
 		else:
