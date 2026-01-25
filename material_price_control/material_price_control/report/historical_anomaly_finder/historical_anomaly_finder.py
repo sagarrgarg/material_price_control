@@ -12,6 +12,11 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate
 
+TRANSFER_STOCK_ENTRY_PURPOSES = (
+	"Material Transfer",
+	"Material Transfer for Manufacture",
+)
+
 
 def execute(filters=None):
 	"""Main entry point for the report."""
@@ -119,15 +124,21 @@ def get_data(filters):
 			item.item_name,
 			item.item_group
 		FROM `tabStock Ledger Entry` sle
+		LEFT JOIN `tabStock Entry` se
+			ON sle.voucher_type = 'Stock Entry' AND sle.voucher_no = se.name
 		INNER JOIN `tabItem` item ON sle.item_code = item.name
 		WHERE
 			sle.actual_qty > 0
 			AND sle.is_cancelled = 0
 			AND sle.voucher_type IN ('Purchase Receipt', 'Purchase Invoice', 'Stock Entry')
+			AND (
+				sle.voucher_type != 'Stock Entry'
+				OR se.purpose NOT IN %(transfer_purposes)s
+			)
 			{conditions}
 		ORDER BY sle.posting_date DESC, sle.posting_time DESC
 		LIMIT 5000
-	""".format(conditions=conditions), filters, as_dict=True)
+	""".format(conditions=conditions), {**filters, "transfer_purposes": TRANSFER_STOCK_ENTRY_PURPOSES}, as_dict=True)
 	
 	# Get settings for thresholds
 	settings = get_settings()

@@ -13,6 +13,11 @@ import frappe
 from frappe import _
 from frappe.utils import flt, getdate, add_months, nowdate
 
+TRANSFER_STOCK_ENTRY_PURPOSES = (
+	"Material Transfer",
+	"Material Transfer for Manufacture",
+)
+
 
 # =============================================================================
 # Utility Functions
@@ -110,6 +115,9 @@ def check_stock_entry(doc, method):
 	"""Check Stock Entry items for valuation anomalies (only incoming items)"""
 	settings = get_settings()
 	if not settings or not settings.enabled:
+		return
+
+	if doc.purpose in TRANSFER_STOCK_ENTRY_PURPOSES:
 		return
 
 	for item in doc.items:
@@ -704,18 +712,25 @@ def get_incoming_rates(item_code, from_date, to_date, include_internal_suppliers
 			sle.stock_value_difference,
 			sle.warehouse
 		FROM `tabStock Ledger Entry` sle
+		LEFT JOIN `tabStock Entry` se
+			ON sle.voucher_type = 'Stock Entry' AND sle.voucher_no = se.name
 		WHERE
 			sle.item_code = %(item_code)s
 			AND sle.actual_qty > 0
 			AND sle.is_cancelled = 0
 			AND sle.voucher_type IN ('Purchase Receipt', 'Purchase Invoice', 'Stock Entry')
+			AND (
+				sle.voucher_type != 'Stock Entry'
+				OR se.purpose NOT IN %(transfer_purposes)s
+			)
 			AND sle.posting_date >= %(from_date)s
 			AND sle.posting_date <= %(to_date)s
 		ORDER BY sle.posting_date ASC, sle.posting_time ASC
 	""", {
 		"item_code": item_code,
 		"from_date": from_date,
-		"to_date": to_date
+		"to_date": to_date,
+		"transfer_purposes": TRANSFER_STOCK_ENTRY_PURPOSES,
 	}, as_dict=True)
 	
 	# Build voucher lists for supplier lookup (PR and PI only)
