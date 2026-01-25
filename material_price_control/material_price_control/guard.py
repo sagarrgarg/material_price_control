@@ -869,6 +869,11 @@ def enrich_data_points(data_points, rule, statistics, settings):
 		reference_rate = 0
 		reference_source = None
 	
+	# Minimum data points for reliable statistical analysis
+	# With < 5 points, statistical limits are unreliable
+	data_count = statistics.get("count", 0)
+	has_reliable_stats = data_count >= 5
+	
 	for dp in data_points:
 		rate = dp["rate"]
 		
@@ -911,14 +916,37 @@ def enrich_data_points(data_points, rule, statistics, settings):
 					is_anomaly = True
 					severity = "Warning"
 		else:
-			# No rule - use statistical limits
-			ucl = statistics.get("ucl", 0)
-			lcl = statistics.get("lcl", 0)
-			
-			if ucl and lcl:
-				if rate > ucl or rate < lcl:
+			# No rule - use statistical limits (only if we have enough data)
+			if has_reliable_stats:
+				ucl = statistics.get("ucl")
+				lcl = statistics.get("lcl")
+				std_dev = statistics.get("std_dev", 0)
+				mean = statistics.get("mean", 0)
+				
+				# Check if we have valid statistics (ucl/lcl can be 0 which is valid)
+				if ucl is not None and lcl is not None and std_dev > 0:
+					if rate > ucl or rate < lcl:
+						is_anomaly = True
+						# Determine severity based on how far outside the limits
+						# Beyond 3σ (UCL + 1σ or LCL - 1σ) is Severe
+						severe_ucl = mean + 3 * std_dev
+						severe_lcl = max(0, mean - 3 * std_dev)
+						if rate > severe_ucl or rate < severe_lcl:
+							severity = "Severe"
+						else:
+							severity = "Warning"
+		
+		# Additional check: extreme variance should always be flagged
+		# Only apply if we have a rule OR reliable stats to compare against
+		# This prevents false positives with few data points
+		if not is_anomaly and dp["variance_pct"] is not None:
+			# Only flag extreme variance if:
+			# 1. There's a rule to compare against, OR
+			# 2. We have reliable stats (5+ data points)
+			if rule or has_reliable_stats:
+				if dp["variance_pct"] > 100:
 					is_anomaly = True
-					severity = "Warning"
+					severity = "Severe" if dp["variance_pct"] > 200 else "Warning"
 		
 		dp["is_anomaly"] = is_anomaly
 		dp["severity"] = severity
