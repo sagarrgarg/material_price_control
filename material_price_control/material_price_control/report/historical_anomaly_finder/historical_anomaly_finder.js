@@ -42,10 +42,22 @@ frappe.query_reports["Historical Anomaly Finder"] = {
 			options: "\nPurchase Receipt\nPurchase Invoice\nStock Entry\nStock Reconciliation"
 		},
 		{
+			fieldname: "created_by",
+			label: __("Created By"),
+			fieldtype: "Link",
+			options: "User"
+		},
+		{
 			fieldname: "show_only_anomalies",
 			label: __("Show Only Anomalies"),
 			fieldtype: "Check",
 			default: 1
+		},
+		{
+			fieldname: "only_with_rules",
+			label: __("Only Items With Rules"),
+			fieldtype: "Check",
+			default: 0
 		}
 	],
 	

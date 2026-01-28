@@ -700,7 +700,7 @@ def get_incoming_rates(item_code, from_date, to_date, include_internal_suppliers
 		include_internal_suppliers: If 0, exclude PR/PI from internal suppliers
 		
 	Returns:
-		List of dicts with date, rate, voucher_type, voucher_no, supplier, is_internal_supplier
+		List of dicts with date, rate, voucher_type, voucher_no, supplier, is_internal_supplier, created_by
 	"""
 	sle_data = frappe.db.sql("""
 		SELECT
@@ -751,6 +751,9 @@ def get_incoming_rates(item_code, from_date, to_date, include_internal_suppliers
 	# Get internal flags for all suppliers
 	supplier_internal_flags = get_supplier_internal_flags(all_suppliers)
 	
+	# Get created_by (owner) for all vouchers
+	voucher_owners = get_voucher_owners(sle_data)
+	
 	# Process and clean data
 	data_points = []
 	for sle in sle_data:
@@ -774,6 +777,9 @@ def get_incoming_rates(item_code, from_date, to_date, include_internal_suppliers
 		if not include_internal_suppliers and is_internal:
 			continue
 		
+		# Get created_by
+		created_by = voucher_owners.get((sle.voucher_type, sle.voucher_no))
+		
 		data_points.append({
 			"date": str(sle.date),
 			"rate": rate,
@@ -782,6 +788,7 @@ def get_incoming_rates(item_code, from_date, to_date, include_internal_suppliers
 			"warehouse": sle.warehouse,
 			"supplier": supplier,
 			"is_internal_supplier": is_internal,
+			"created_by": created_by,
 			"is_anomaly": False,
 			"severity": None,
 			"reference_rate": None,
@@ -791,6 +798,63 @@ def get_incoming_rates(item_code, from_date, to_date, include_internal_suppliers
 		})
 	
 	return data_points
+
+
+def get_voucher_owners(sle_data):
+	"""
+	Get the owner (created_by) full name for each voucher.
+	
+	Args:
+		sle_data: List of SLE entries with voucher_type and voucher_no
+		
+	Returns:
+		dict mapping (voucher_type, voucher_no) -> full_name
+	"""
+	# Group vouchers by type
+	vouchers_by_type = {}
+	for sle in sle_data:
+		vtype = sle.voucher_type
+		if vtype not in vouchers_by_type:
+			vouchers_by_type[vtype] = set()
+		vouchers_by_type[vtype].add(sle.voucher_no)
+	
+	# Collect all owner emails
+	owner_emails = set()
+	voucher_owner_map = {}
+	
+	# Fetch owners for each voucher type
+	for vtype, voucher_nos in vouchers_by_type.items():
+		if not voucher_nos:
+			continue
+		
+		owners = frappe.get_all(
+			vtype,
+			filters={"name": ["in", list(voucher_nos)]},
+			fields=["name", "owner"]
+		)
+		
+		for row in owners:
+			voucher_owner_map[(vtype, row.name)] = row.owner
+			if row.owner:
+				owner_emails.add(row.owner)
+	
+	# Get full names for all owners
+	user_full_names = {}
+	if owner_emails:
+		users = frappe.get_all(
+			"User",
+			filters={"name": ["in", list(owner_emails)]},
+			fields=["name", "full_name"]
+		)
+		for user in users:
+			user_full_names[user.name] = user.full_name or user.name
+	
+	# Build result with full names
+	result = {}
+	for key, owner_email in voucher_owner_map.items():
+		result[key] = user_full_names.get(owner_email, owner_email)
+	
+	return result
 
 
 def calculate_statistics(data_points):

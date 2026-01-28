@@ -163,7 +163,12 @@ class CostValuationChart {
 						<h5 class="text-muted mb-0">
 							<i class="fa fa-line-chart"></i> ${__("Rate Control Chart")}
 						</h5>
-						<div id="chart-stats" class="chart-stats text-muted small"></div>
+						<div class="d-flex align-items-center">
+							<div id="chart-stats" class="chart-stats text-muted small mr-3"></div>
+							<button class="btn btn-xs btn-default" id="download-chart-btn" title="${__("Download Chart as PNG")}" style="display: none;">
+								<i class="fa fa-download"></i> ${__("Chart")}
+							</button>
+						</div>
 					</div>
 					<div id="control-chart" style="width: 100%; height: 450px;">
 						<div class="text-muted text-center p-5">
@@ -175,9 +180,18 @@ class CostValuationChart {
 				
 				<!-- Data Table -->
 				<div class="table-section frappe-card p-3">
-					<h5 class="text-muted mb-3">
-						<i class="fa fa-table"></i> ${__("Data Points")}
-					</h5>
+					<div class="d-flex justify-content-between align-items-center mb-3">
+						<h5 class="text-muted mb-0">
+							<i class="fa fa-table"></i> ${__("Data Points")}
+						</h5>
+						<div class="d-flex align-items-center" id="table-controls" style="display: none;">
+							<input type="text" class="form-control form-control-sm mr-2" id="table-search" 
+								placeholder="${__("Search...")}" style="width: 200px;">
+							<button class="btn btn-xs btn-default" id="download-csv-btn" title="${__("Download as CSV")}">
+								<i class="fa fa-download"></i> ${__("Download CSV")}
+							</button>
+						</div>
+					</div>
 					<div id="data-table">
 						<div class="text-muted text-center p-3">
 							${__("No data to display")}
@@ -260,6 +274,116 @@ class CostValuationChart {
 			const chevron = this.page.main.find("#method-chevron");
 			body.slideToggle(200);
 			chevron.toggleClass("fa-chevron-down fa-chevron-up");
+		});
+
+		// Download chart as PNG
+		this.page.main.find("#download-chart-btn").on("click", () => {
+			this.downloadChart();
+		});
+
+		// Download CSV
+		this.page.main.find("#download-csv-btn").on("click", () => {
+			this.downloadData("csv");
+		});
+
+		// Table search
+		this.page.main.find("#table-search").on("input", function() {
+			self.filterTable($(this).val());
+		});
+	}
+
+	downloadChart() {
+		if (!this.chart) return;
+		
+		const url = this.chart.getDataURL({
+			type: "png",
+			pixelRatio: 2,
+			backgroundColor: "#fff"
+		});
+		
+		const link = document.createElement("a");
+		link.download = `control-chart-${this.chartData.item_code}-${frappe.datetime.get_today()}.png`;
+		link.href = url;
+		link.click();
+	}
+
+	downloadData() {
+		if (!this.chartData || !this.chartData.data_points) return;
+		
+		const data = this.chartData.data_points;
+		const itemCode = this.chartData.item_code;
+		
+		// Prepare data for export
+		const exportData = data.map(dp => ({
+			"Date": dp.date,
+			"Rate": dp.rate,
+			"Reference Rate": dp.reference_rate,
+			"Reference Source": dp.reference_source || "",
+			"Variance (₹)": dp.variance_amount,
+			"Variance (%)": dp.variance_pct,
+			"Supplier": dp.supplier || "",
+			"Internal": dp.is_internal_supplier ? "Yes" : "No",
+			"Voucher Type": dp.voucher_type,
+			"Voucher No": dp.voucher_no,
+			"Warehouse": dp.warehouse || "",
+			"Created By": dp.created_by || "",
+			"Status": dp.severity || "Normal"
+		}));
+		
+		this.downloadCSV(exportData, `control-chart-${itemCode}-${frappe.datetime.get_today()}.csv`);
+	}
+
+	downloadCSV(data, filename) {
+		if (!data.length) return;
+		
+		const headers = Object.keys(data[0]);
+		const csvContent = [
+			headers.join(","),
+			...data.map(row => headers.map(h => {
+				let val = row[h];
+				if (val === null || val === undefined) val = "";
+				// Escape quotes and wrap in quotes if contains comma
+				val = String(val).replace(/"/g, '""');
+				if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+					val = `"${val}"`;
+				}
+				return val;
+			}).join(","))
+		].join("\n");
+		
+		const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+		const link = document.createElement("a");
+		link.href = URL.createObjectURL(blob);
+		link.download = filename;
+		link.click();
+	}
+
+	scrollToTableRow(voucherType, voucherNo) {
+		const rowId = `row-${voucherType.replace(/ /g, "-")}-${voucherNo}`;
+		const $row = this.page.main.find(`#${rowId}`);
+		
+		if ($row.length) {
+			// Remove highlight from all rows
+			this.page.main.find("#data-points-table tbody tr").removeClass("table-info");
+			
+			// Highlight the target row
+			$row.addClass("table-info");
+			
+			// Scroll to the row
+			$row[0].scrollIntoView({ behavior: "smooth", block: "center" });
+		}
+	}
+
+	filterTable(searchText) {
+		const $table = this.page.main.find("#data-table table");
+		if (!$table.length) return;
+		
+		const search = searchText.toLowerCase().trim();
+		
+		$table.find("tbody tr").each(function() {
+			const $row = $(this);
+			const text = $row.text().toLowerCase();
+			$row.toggle(text.includes(search) || !search);
 		});
 	}
 
@@ -450,6 +574,7 @@ class CostValuationChart {
 				voucher_no: dp.voucher_no,
 				supplier: dp.supplier,
 				is_internal_supplier: dp.is_internal_supplier,
+				created_by: dp.created_by,
 				reference_rate: dp.reference_rate,
 				reference_source: dp.reference_source,
 				variance_amount: dp.variance_amount,
@@ -592,6 +717,11 @@ class CostValuationChart {
 							html += `<b>${__("Voucher")}:</b> ${d.voucher_type} / ${d.voucher_no}<br/>`;
 						}
 						
+						// Show created by
+						if (d.created_by) {
+							html += `<b>${__("Created By")}:</b> ${d.created_by}<br/>`;
+						}
+						
 						if (d.severity) {
 							const color = d.severity === "Severe" ? "#ee6666" : "#fac858";
 							html += `<span style="color: ${color}; font-weight: bold;">${__("Status")}: ${d.severity}</span>`;
@@ -652,6 +782,18 @@ class CostValuationChart {
 		};
 
 		this.chart.setOption(option, true);
+
+		// Add click handler for chart points
+		const self = this;
+		this.chart.off("click"); // Remove existing handlers
+		this.chart.on("click", function(params) {
+			if (params.seriesType === "scatter" && params.data) {
+				const d = params.data;
+				if (d.voucher_type && d.voucher_no) {
+					self.scrollToTableRow(d.voucher_type, d.voucher_no);
+				}
+			}
+		});
 	}
 
 	renderStats() {
@@ -697,12 +839,20 @@ class CostValuationChart {
 					${__("No data to display")}
 				</div>
 			`);
+			// Hide controls
+			this.page.main.find("#table-controls").hide();
+			this.page.main.find("#download-chart-btn").hide();
 			return;
 		}
 
+		// Show controls
+		this.page.main.find("#table-controls").show();
+		this.page.main.find("#download-chart-btn").show();
+		this.page.main.find("#table-search").val("");
+
 		let html = `
 			<div class="table-responsive">
-				<table class="table table-bordered table-hover table-sm">
+				<table class="table table-bordered table-hover table-sm" id="data-points-table">
 					<thead class="thead-light">
 						<tr>
 							<th>${__("Date")}</th>
@@ -713,6 +863,7 @@ class CostValuationChart {
 							<th>${__("Supplier")}</th>
 							<th>${__("Voucher")}</th>
 							<th>${__("Warehouse")}</th>
+							<th>${__("Created By")}</th>
 							<th>${__("Status")}</th>
 						</tr>
 					</thead>
@@ -730,6 +881,9 @@ class CostValuationChart {
 			
 			const voucherSlug = dp.voucher_type.toLowerCase().replace(/ /g, "-");
 			
+			// Unique row ID for scroll-to functionality
+			const rowId = `row-${dp.voucher_type.replace(/ /g, "-")}-${dp.voucher_no}`;
+			
 			// Format variance
 			const varianceSign = dp.variance_amount >= 0 ? "+" : "";
 			const varianceAmount = dp.variance_amount !== null ? `${varianceSign}₹${dp.variance_amount.toFixed(2)}` : "-";
@@ -743,8 +897,11 @@ class CostValuationChart {
 				supplierDisplay = `${dp.supplier} <span class="badge badge-secondary">Int</span>`;
 			}
 			
+			// Created by - show user full name
+			const createdBy = dp.created_by || "-";
+			
 			html += `
-				<tr class="${statusClass}">
+				<tr id="${rowId}" class="${statusClass}">
 					<td>${frappe.datetime.str_to_user(dp.date)}</td>
 					<td class="text-right">₹${dp.rate.toFixed(2)}</td>
 					<td class="text-right">${refRate} ${refSource}</td>
@@ -753,6 +910,7 @@ class CostValuationChart {
 					<td>${supplierDisplay}</td>
 					<td><a href="/app/${voucherSlug}/${dp.voucher_no}" target="_blank">${dp.voucher_type} / ${dp.voucher_no}</a></td>
 					<td>${dp.warehouse || "-"}</td>
+					<td>${createdBy}</td>
 					<td class="text-center">${statusBadge}</td>
 				</tr>
 			`;

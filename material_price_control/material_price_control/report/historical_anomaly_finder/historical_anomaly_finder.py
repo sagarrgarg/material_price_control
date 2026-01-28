@@ -48,6 +48,13 @@ def get_columns():
 			"width": 150
 		},
 		{
+			"fieldname": "created_by",
+			"label": _("Created By"),
+			"fieldtype": "Link",
+			"options": "User",
+			"width": 120
+		},
+		{
 			"fieldname": "item_code",
 			"label": _("Item Code"),
 			"fieldtype": "Link",
@@ -143,12 +150,66 @@ def get_data(filters):
 	# Get settings for thresholds
 	settings = get_settings()
 	
+	# Get voucher owners for created_by column
+	voucher_owners = get_voucher_owners(sle_data)
+	
 	# Process each entry and calculate anomalies
 	result = []
+	only_with_rules = filters.get("only_with_rules")
+	created_by_filter = filters.get("created_by")
+	
 	for sle in sle_data:
-		row = process_sle_entry(sle, settings, filters)
+		# Get created_by from voucher
+		created_by = voucher_owners.get((sle.voucher_type, sle.voucher_no))
+		
+		# Filter by created_by if specified
+		if created_by_filter and created_by != created_by_filter:
+			continue
+		
+		row = process_sle_entry(sle, settings, filters, created_by)
 		if row:
+			# Filter out items without rules if only_with_rules is checked
+			if only_with_rules and row.get("rule_source") == "None":
+				continue
 			result.append(row)
+	
+	return result
+
+
+def get_voucher_owners(sle_data):
+	"""
+	Get the owner (created_by) for each voucher.
+	
+	Args:
+		sle_data: List of SLE entries
+		
+	Returns:
+		dict mapping (voucher_type, voucher_no) -> owner
+	"""
+	# Group vouchers by type
+	vouchers_by_type = {}
+	for sle in sle_data:
+		vtype = sle.voucher_type
+		if vtype not in vouchers_by_type:
+			vouchers_by_type[vtype] = set()
+		vouchers_by_type[vtype].add(sle.voucher_no)
+	
+	result = {}
+	
+	# Fetch owners for each voucher type
+	for vtype, voucher_nos in vouchers_by_type.items():
+		if not voucher_nos:
+			continue
+		
+		doctype = vtype
+		owners = frappe.get_all(
+			doctype,
+			filters={"name": ["in", list(voucher_nos)]},
+			fields=["name", "owner"]
+		)
+		
+		for row in owners:
+			result[(vtype, row.name)] = row.owner
 	
 	return result
 
@@ -178,7 +239,7 @@ def build_conditions(filters):
 	return " ".join(conditions)
 
 
-def process_sle_entry(sle, settings, filters):
+def process_sle_entry(sle, settings, filters, created_by=None):
 	"""
 	Process a single SLE entry and determine if it's an anomaly.
 	
@@ -186,6 +247,7 @@ def process_sle_entry(sle, settings, filters):
 		sle: Stock Ledger Entry dict
 		settings: Cost Valuation Settings
 		filters: Report filters
+		created_by: User who created the voucher
 		
 	Returns:
 		dict with processed data or None if filtered out
@@ -203,6 +265,7 @@ def process_sle_entry(sle, settings, filters):
 		"posting_date": sle.posting_date,
 		"voucher_type": sle.voucher_type,
 		"voucher_no": sle.voucher_no,
+		"created_by": created_by,
 		"item_code": sle.item_code,
 		"item_name": sle.item_name,
 		"warehouse": sle.warehouse,
