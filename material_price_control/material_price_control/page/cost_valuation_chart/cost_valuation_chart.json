@@ -15,6 +15,12 @@
   },
   {
    "role": "Stock Manager"
+  },
+  {
+   "role": "Cost Manager"
+  },
+  {
+   "role": "Cost Guard"
   }
  ],
  "standard": "Yes",

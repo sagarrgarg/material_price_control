@@ -110,7 +110,7 @@ class CostValuationChart {
 								<h6 class="font-weight-bold">${__("Data Source")}</h6>
 								<ul class="small mb-3">
 									<li><strong>${__("Source")}:</strong> Stock Ledger Entry (incoming qty > 0)</li>
-									<li><strong>${__("Vouchers")}:</strong> Purchase Receipt, Purchase Invoice, Stock Entry</li>
+									<li><strong>${__("Vouchers")}:</strong> Purchase Receipt, Purchase Invoice, Stock Entry, Stock Reconciliation</li>
 									<li><strong>${__("Rate")}:</strong> <code>incoming_rate</code>, fallback to <code>|stock_value_difference / actual_qty|</code></li>
 								</ul>
 								

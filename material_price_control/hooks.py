@@ -32,6 +32,10 @@ app_include_js = "/assets/material_price_control/js/echarts.min.js"
 # --------
 fixtures = [
 	{
+		"dt": "Role",
+		"filters": [["role_name", "in", ["Cost Guard", "Cost Manager"]]]
+	},
+	{
 		"dt": "Number Card",
 		"filters": [["module", "=", "Material Price Control"]]
 	},

@@ -39,7 +39,7 @@ frappe.query_reports["Historical Anomaly Finder"] = {
 			fieldname: "voucher_type",
 			label: __("Voucher Type"),
 			fieldtype: "Select",
-			options: "\nPurchase Receipt\nPurchase Invoice\nStock Entry"
+			options: "\nPurchase Receipt\nPurchase Invoice\nStock Entry\nStock Reconciliation"
 		},
 		{
 			fieldname: "show_only_anomalies",

@@ -31,6 +31,12 @@ def get_columns():
 	"""Define report columns."""
 	return [
 		{
+			"fieldname": "set_rule",
+			"label": _("Action"),
+			"fieldtype": "Data",
+			"width": 80
+		},
+		{
 			"fieldname": "item_code",
 			"label": _("Item Code"),
 			"fieldtype": "Link",

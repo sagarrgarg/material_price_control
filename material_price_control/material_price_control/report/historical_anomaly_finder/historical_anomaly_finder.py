@@ -130,9 +130,9 @@ def get_data(filters):
 		WHERE
 			sle.actual_qty > 0
 			AND sle.is_cancelled = 0
-			AND sle.voucher_type IN ('Purchase Receipt', 'Purchase Invoice', 'Stock Entry')
+			AND sle.voucher_type IN ('Purchase Receipt', 'Purchase Invoice', 'Stock Entry', 'Stock Reconciliation')
 			AND (
-				sle.voucher_type != 'Stock Entry'
+				sle.voucher_type NOT IN ('Stock Entry')
 				OR se.purpose NOT IN %(transfer_purposes)s
 			)
 			{conditions}

@@ -1,0 +1,16 @@
+[
+	{
+		"doctype": "Role",
+		"role_name": "Cost Guard",
+		"desk_access": 1,
+		"is_custom": 1,
+		"disabled": 0
+	},
+	{
+		"doctype": "Role",
+		"role_name": "Cost Manager",
+		"desk_access": 1,
+		"is_custom": 1,
+		"disabled": 0
+	}
+]

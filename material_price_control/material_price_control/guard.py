@@ -718,9 +718,9 @@ def get_incoming_rates(item_code, from_date, to_date, include_internal_suppliers
 			sle.item_code = %(item_code)s
 			AND sle.actual_qty > 0
 			AND sle.is_cancelled = 0
-			AND sle.voucher_type IN ('Purchase Receipt', 'Purchase Invoice', 'Stock Entry')
+			AND sle.voucher_type IN ('Purchase Receipt', 'Purchase Invoice', 'Stock Entry', 'Stock Reconciliation')
 			AND (
-				sle.voucher_type != 'Stock Entry'
+				sle.voucher_type NOT IN ('Stock Entry')
 				OR se.purpose NOT IN %(transfer_purposes)s
 			)
 			AND sle.posting_date >= %(from_date)s
@@ -1037,3 +1037,84 @@ def get_recent_anomalies(limit=50):
 	""", {"limit": int(limit)}, as_dict=True)
 	
 	return anomalies
+
+
+@frappe.whitelist()
+def upsert_cost_valuation_rule(item_code, expected_rate, min_rate=None, max_rate=None, 
+                               warehouse=None, allowed_variance_pct=None):
+	"""
+	Create or update a Cost Valuation Rule for an item.
+	
+	Used by Item Valuation Statistics report to set rules from historical stats.
+	
+	Args:
+		item_code: The item code to create/update rule for
+		expected_rate: The expected rate (typically the mean)
+		min_rate: Optional minimum rate (typically LCL)
+		max_rate: Optional maximum rate (typically UCL)
+		warehouse: Optional warehouse for warehouse-specific rule
+		allowed_variance_pct: Optional allowed variance percentage
+		
+	Returns:
+		dict with rule_name and action ('created' or 'updated')
+	"""
+	if not item_code:
+		frappe.throw(_("Item code is required"))
+	
+	if not expected_rate or flt(expected_rate) <= 0:
+		frappe.throw(_("Expected rate must be greater than 0"))
+	
+	# Check if item exists
+	if not frappe.db.exists("Item", item_code):
+		frappe.throw(_("Item {0} does not exist").format(item_code))
+	
+	# Look for existing rule
+	filters = {
+		"rule_for": "Item",
+		"item_code": item_code,
+		"enabled": 1
+	}
+	
+	if warehouse:
+		filters["warehouse"] = warehouse
+	else:
+		# Look for rule without warehouse
+		filters["warehouse"] = ["is", "not set"]
+	
+	existing_rule = frappe.db.get_value("Cost Valuation Rule", filters, "name")
+	
+	if existing_rule:
+		# Update existing rule
+		doc = frappe.get_doc("Cost Valuation Rule", existing_rule)
+		doc.expected_rate = flt(expected_rate)
+		if min_rate is not None:
+			doc.min_rate = flt(min_rate) if flt(min_rate) > 0 else None
+		if max_rate is not None:
+			doc.max_rate = flt(max_rate) if flt(max_rate) > 0 else None
+		if allowed_variance_pct is not None:
+			doc.allowed_variance_pct = flt(allowed_variance_pct) if flt(allowed_variance_pct) > 0 else None
+		doc.save()
+		
+		return {
+			"rule_name": doc.name,
+			"action": "updated"
+		}
+	else:
+		# Create new rule
+		doc = frappe.get_doc({
+			"doctype": "Cost Valuation Rule",
+			"rule_for": "Item",
+			"item_code": item_code,
+			"warehouse": warehouse if warehouse else None,
+			"expected_rate": flt(expected_rate),
+			"min_rate": flt(min_rate) if min_rate and flt(min_rate) > 0 else None,
+			"max_rate": flt(max_rate) if max_rate and flt(max_rate) > 0 else None,
+			"allowed_variance_pct": flt(allowed_variance_pct) if allowed_variance_pct and flt(allowed_variance_pct) > 0 else None,
+			"enabled": 1
+		})
+		doc.insert()
+		
+		return {
+			"rule_name": doc.name,
+			"action": "created"
+		}
