@@ -2,7 +2,12 @@
 # License: MIT
 
 """
-Version compatibility utilities for Frappe V14/V15 support.
+Version compatibility utilities for Frappe V14/V15/V16 support.
+
+Supported versions:
+- Frappe v14.x (ERPNext v14)
+- Frappe v15.x (ERPNext v15)
+- Frappe v16.x (ERPNext v16)
 """
 
 import frappe
@@ -20,9 +25,23 @@ except ImportError:
 			self.patch = int(parts[2].split("-")[0]) if len(parts) > 2 else 0
 
 
+# =============================================================================
+# Version Detection
+# =============================================================================
+
 def get_frappe_version():
 	"""Get the current Frappe version as a Version object."""
 	return Version(frappe_version)
+
+
+def get_major_version():
+	"""Get the major version number (14, 15, 16, etc.)."""
+	return get_frappe_version().major
+
+
+def is_version_16_or_above():
+	"""Check if Frappe version is 16 or above."""
+	return get_frappe_version().major >= 16
 
 
 def is_version_15_or_above():
@@ -30,18 +49,30 @@ def is_version_15_or_above():
 	return get_frappe_version().major >= 15
 
 
+def is_version_16():
+	"""Check if Frappe version is exactly 16.x."""
+	return get_frappe_version().major == 16
+
+
+def is_version_15():
+	"""Check if Frappe version is exactly 15.x."""
+	return get_frappe_version().major == 15
+
+
 def is_version_14():
 	"""Check if Frappe version is exactly 14.x."""
 	return get_frappe_version().major == 14
 
 
-# Version-specific database helpers
+# =============================================================================
+# Version-specific Database Helpers
+# =============================================================================
+
 def db_savepoint(name):
 	"""
 	Create a database savepoint.
 	
-	In V15, frappe.db.savepoint() is available directly.
-	In V14, we use the same method but handle any differences.
+	Works consistently across V14, V15, and V16.
 	"""
 	frappe.db.savepoint(name)
 
@@ -50,8 +81,7 @@ def db_rollback_to_savepoint(name):
 	"""
 	Rollback to a database savepoint.
 	
-	In V15, use frappe.db.rollback(savepoint=name).
-	In V14, the same method signature works.
+	Works consistently across V14, V15, and V16.
 	"""
 	frappe.db.rollback(savepoint=name)
 
@@ -60,9 +90,18 @@ def get_query_builder():
 	"""
 	Get the Frappe Query Builder.
 	
-	Both V14 and V15 support frappe.qb.
+	V14, V15, V16 all support frappe.qb.
 	"""
 	return frappe.qb
+
+
+def db_count(doctype, filters=None):
+	"""
+	Count documents matching filters.
+	
+	V16 has optimized count methods, falls back to get_count for older versions.
+	"""
+	return frappe.db.count(doctype, filters=filters)
 
 
 def safe_get_value(doctype, filters, fieldname, as_dict=False):
@@ -106,11 +145,16 @@ def safe_get_all(doctype, filters=None, fields=None, order_by=None, limit=None, 
 	)
 
 
+# =============================================================================
+# Version-specific Test Helpers
+# =============================================================================
+
 def get_test_case_class():
 	"""
 	Get the appropriate test case class for the current Frappe version.
 	
-	V15+: frappe.tests.IntegrationTestCase
+	V16+: frappe.tests.IntegrationTestCase (preferred)
+	V15:  frappe.tests.IntegrationTestCase or FrappeTestCase
 	V14:  frappe.tests.utils.FrappeTestCase
 	
 	Returns:
@@ -125,3 +169,30 @@ def get_test_case_class():
 	
 	from frappe.tests.utils import FrappeTestCase
 	return FrappeTestCase
+
+
+# =============================================================================
+# Version Info for Debugging
+# =============================================================================
+
+def get_version_info():
+	"""
+	Get comprehensive version information for debugging.
+	
+	Returns:
+		dict with frappe_version, major, is_v14, is_v15, is_v16, supported
+	"""
+	version = get_frappe_version()
+	major = version.major
+	
+	return {
+		"frappe_version": frappe_version,
+		"major": major,
+		"minor": version.minor,
+		"is_v14": major == 14,
+		"is_v15": major == 15,
+		"is_v16": major == 16,
+		"is_v15_or_above": major >= 15,
+		"is_v16_or_above": major >= 16,
+		"supported": major in (14, 15, 16)
+	}

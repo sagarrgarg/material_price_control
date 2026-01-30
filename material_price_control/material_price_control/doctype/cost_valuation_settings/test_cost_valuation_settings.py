@@ -26,12 +26,23 @@ class TestCostValuationSettings(FrappeTestCase):
 		from material_price_control.material_price_control.version import (
 			get_frappe_version,
 			is_version_15_or_above,
+			is_version_16_or_above,
+			get_version_info,
 		)
 
 		version = get_frappe_version()
 		self.assertIsNotNone(version)
 		self.assertIsNotNone(version.major)
 
-		# is_version_15_or_above should return a boolean
-		result = is_version_15_or_above()
-		self.assertIsInstance(result, bool)
+		# Version checks should return booleans
+		self.assertIsInstance(is_version_15_or_above(), bool)
+		self.assertIsInstance(is_version_16_or_above(), bool)
+
+		# Version info should return a dict with expected keys
+		info = get_version_info()
+		self.assertIsInstance(info, dict)
+		self.assertIn("major", info)
+		self.assertIn("supported", info)
+		self.assertIn("is_v14", info)
+		self.assertIn("is_v15", info)
+		self.assertIn("is_v16", info)
