@@ -5,9 +5,9 @@
 Version compatibility utilities for Frappe V14/V15/V16 support.
 
 Supported versions:
-- Frappe v14.x (ERPNext v14)
-- Frappe v15.x (ERPNext v15)
-- Frappe v16.x (ERPNext v16)
+- Frappe v14.x (ERPNext v14) - Python 3.10+, Node 16+
+- Frappe v15.x (ERPNext v15) - Python 3.10+, Node 18+
+- Frappe v16.x (ERPNext v16) - Python 3.13+, Node 22+
 """
 
 import frappe

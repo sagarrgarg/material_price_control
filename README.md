@@ -7,11 +7,11 @@ Prevent cost valuation errors in ERPNext by detecting and blocking unusual mater
 
 ## Compatibility
 
-| Frappe Version | ERPNext Version | Python | Status |
-|----------------|-----------------|--------|--------|
-| v14.x | v14.x | 3.10 | Supported |
-| v15.x | v15.x | 3.10+ | Supported |
-| v16.x | v16.x | 3.11+ | Supported |
+| Frappe Version | ERPNext Version | Python | Node.js | Status |
+|----------------|-----------------|--------|---------|--------|
+| v14.x | v14.x | 3.10+ | 16+ | Supported |
+| v15.x | v15.x | 3.10+ | 18+ | Supported |
+| v16.x | v16.x | 3.13+ | 22+ | Supported |
 
 ## Problem
 
@@ -71,7 +71,8 @@ The app will be automatically installed and migrated.
 
 - Frappe Bench installed and configured
 - ERPNext v14, v15, or v16 installed
-- Python 3.10+ (3.11+ for v16)
+- Python 3.10+ (3.13+ for v16)
+- Node.js 18+ (22+ for v16)
 
 #### Steps
 

@@ -24,8 +24,8 @@ jobs:
             node-version: 18
           - frappe-version: version-16
             erpnext-version: version-16
-            python-version: '3.11'
-            node-version: 20
+            python-version: '3.13'
+            node-version: 22
 
     name: Server (Frappe ${{ matrix.frappe-version }})
 
