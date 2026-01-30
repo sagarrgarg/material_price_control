@@ -75,6 +75,12 @@ def get_columns():
 			"width": 100
 		},
 		{
+			"fieldname": "variance_pct",
+			"label": _("Variance % (σ/μ)"),
+			"fieldtype": "Percent",
+			"width": 120
+		},
+		{
 			"fieldname": "ucl",
 			"label": _("UCL (μ+2σ)"),
 			"fieldtype": "Currency",
@@ -150,6 +156,12 @@ def get_data(filters):
 		row["std_dev"] = stats.get("std_dev", 0)
 		row["ucl"] = stats.get("ucl", 0)
 		row["lcl"] = stats.get("lcl", 0)
+		
+		if row["mean"] and row["mean"] > 0:
+			variance_pct = (flt(row["std_dev"]) / row["mean"]) * 100
+			row["variance_pct"] = round(variance_pct, 2)
+		else:
+			row["variance_pct"] = None
 		
 		# Get current rule
 		current_rule = get_expected_rate(

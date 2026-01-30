@@ -11,7 +11,7 @@ This module provides hooks to check valuation rates on stock-in transactions
 import math
 import frappe
 from frappe import _
-from frappe.utils import flt, getdate, add_months, nowdate
+from frappe.utils import flt, getdate, add_months, nowdate, cstr
 
 TRANSFER_STOCK_ENTRY_PURPOSES = (
 	"Material Transfer",
@@ -1182,3 +1182,58 @@ def upsert_cost_valuation_rule(item_code, expected_rate, min_rate=None, max_rate
 			"rule_name": doc.name,
 			"action": "created"
 		}
+
+
+@frappe.whitelist()
+def bulk_upsert_cost_valuation_rules(rules, warehouse=None):
+	"""
+	Bulk create or update Cost Valuation Rules for multiple items.
+	
+	Args:
+		rules: List (or JSON string) of rule dicts with item_code, expected_rate,
+			min_rate, max_rate, allowed_variance_pct
+		warehouse: Optional warehouse override for all rules
+		
+	Returns:
+		dict with success_count, results, and errors
+	"""
+	if not rules:
+		return {"success_count": 0, "results": [], "errors": []}
+	
+	if isinstance(rules, str):
+		rules = frappe.parse_json(rules)
+	
+	if not isinstance(rules, (list, tuple)):
+		frappe.throw(_("Rules must be a list"))
+	
+	results = []
+	errors = []
+	
+	for idx, rule in enumerate(rules):
+		item_code = rule.get("item_code") if isinstance(rule, dict) else None
+		if not item_code:
+			errors.append({"item_code": item_code, "error": _("Item code is required")})
+			continue
+		
+		savepoint = f"bulk_cost_rule_{idx}"
+		frappe.db.savepoint(savepoint)
+		
+		try:
+			response = upsert_cost_valuation_rule(
+				item_code=item_code,
+				expected_rate=rule.get("expected_rate"),
+				min_rate=rule.get("min_rate"),
+				max_rate=rule.get("max_rate"),
+				warehouse=warehouse or rule.get("warehouse"),
+				allowed_variance_pct=rule.get("allowed_variance_pct")
+			)
+			results.append({"item_code": item_code, **response})
+		except Exception as exc:
+			frappe.db.rollback(savepoint=savepoint)
+			errors.append({"item_code": item_code, "error": cstr(exc)})
+	
+	return {
+		"success_count": len(results),
+		"results": results,
+		"errors": errors
+	}
