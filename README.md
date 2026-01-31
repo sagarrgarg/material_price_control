@@ -50,6 +50,7 @@ This app validates incoming rates against expected values and:
 - Purchase Receipt
 - Purchase Invoice (with `Update Stock`)
 - Stock Entry (incoming items)
+- Stock Reconciliation (opening stock & adjustments)
 
 ---
 

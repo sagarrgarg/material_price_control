@@ -5,7 +5,7 @@
 Material Price Control - Guard Module
 
 This module provides hooks to check valuation rates on stock-in transactions
-(Purchase Receipt, Purchase Invoice, Stock Entry) and detect anomalies.
+(Purchase Receipt, Purchase Invoice, Stock Entry, Stock Reconciliation) and detect anomalies.
 """
 
 import math
@@ -130,6 +130,29 @@ def check_stock_entry(doc, method):
 			continue
 
 		check_item_rate(doc, item, incoming_rate, "Stock Entry", settings)
+
+
+def check_stock_reconciliation(doc, method):
+	"""Check Stock Reconciliation items for valuation anomalies.
+	
+	Stock Reconciliation can set opening stock or adjust stock counts,
+	both of which affect inventory valuation. This validates the valuation_rate
+	for each item against the defined Cost Valuation Rules.
+	"""
+	settings = get_settings()
+	if not settings or not settings.enabled:
+		return
+
+	for item in doc.items:
+		# Skip items with zero or negative qty
+		if flt(item.qty) <= 0:
+			continue
+
+		incoming_rate = flt(item.valuation_rate)
+		if not incoming_rate:
+			continue
+
+		check_item_rate(doc, item, incoming_rate, "Stock Reconciliation", settings)
 
 
 def check_item_rate(doc, item_row, incoming_rate, voucher_type, settings):

@@ -1,7 +1,7 @@
 app_name = "material_price_control"
 app_title = "Material Price Control"
 app_publisher = "Sagar Ratan Garg"
-app_description = "Material Valuation Control is an ERPNext module that prevents cost valuation errors by detecting and blocking unusual material valuation rates during purchase receipts, purchase invoices, and stock entries. It helps maintain accurate inventory valuation by comparing incoming rates against expected rates and alerting users to potential data entry mistakes or pricing anomalies."
+app_description = "Material Valuation Control is an ERPNext module that prevents cost valuation errors by detecting and blocking unusual material valuation rates during purchase receipts, purchase invoices, stock entries, and stock reconciliations. It helps maintain accurate inventory valuation by comparing incoming rates against expected rates and alerting users to potential data entry mistakes or pricing anomalies."
 app_email = "sagarratangarg@gmail.com"
 app_license = "mit"
 
@@ -163,6 +163,9 @@ doc_events = {
 	},
 	"Stock Entry": {
 		"before_submit": "material_price_control.material_price_control.guard.check_stock_entry"
+	},
+	"Stock Reconciliation": {
+		"before_submit": "material_price_control.material_price_control.guard.check_stock_reconciliation"
 	}
 }
 
