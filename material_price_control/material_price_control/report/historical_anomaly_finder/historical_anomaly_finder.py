@@ -117,7 +117,9 @@ def get_data(filters):
 	"""Fetch and process Stock Ledger Entries."""
 	conditions = build_conditions(filters)
 	
-	# Fetch Stock Ledger Entries with incoming qty
+	# Fetch Stock Ledger Entries with incoming qty.
+	# Stock Reconciliation SLEs have actual_qty=0 and incoming_rate=0;
+	# the rate is in valuation_rate and quantity in qty_after_transaction.
 	sle_data = frappe.db.sql("""
 		SELECT
 			sle.posting_date,
@@ -127,6 +129,8 @@ def get_data(filters):
 			sle.warehouse,
 			sle.actual_qty as qty,
 			sle.incoming_rate,
+			sle.valuation_rate as sle_valuation_rate,
+			sle.qty_after_transaction,
 			sle.stock_value_difference,
 			item.item_name,
 			item.item_group
@@ -135,9 +139,12 @@ def get_data(filters):
 			ON sle.voucher_type = 'Stock Entry' AND sle.voucher_no = se.name
 		INNER JOIN `tabItem` item ON sle.item_code = item.name
 		WHERE
-			sle.actual_qty > 0
-			AND sle.is_cancelled = 0
+			sle.is_cancelled = 0
 			AND sle.voucher_type IN ('Purchase Receipt', 'Purchase Invoice', 'Stock Entry', 'Stock Reconciliation')
+			AND (
+				sle.actual_qty > 0
+				OR (sle.voucher_type = 'Stock Reconciliation' AND sle.qty_after_transaction > 0)
+			)
 			AND (
 				sle.voucher_type NOT IN ('Stock Entry')
 				OR se.purpose NOT IN %(transfer_purposes)s
@@ -252,14 +259,22 @@ def process_sle_entry(sle, settings, filters, created_by=None):
 	Returns:
 		dict with processed data or None if filtered out
 	"""
-	# Calculate effective incoming rate
+	# Calculate effective incoming rate.
+	# Stock Reconciliation: incoming_rate is 0, use valuation_rate instead.
 	incoming_rate = flt(sle.incoming_rate)
+	if not incoming_rate and sle.voucher_type == "Stock Reconciliation":
+		incoming_rate = flt(sle.sle_valuation_rate)
 	if not incoming_rate and sle.stock_value_difference and sle.qty:
 		incoming_rate = abs(flt(sle.stock_value_difference) / flt(sle.qty))
 	
 	# Get expected rate from rules
 	expected = get_expected_rate(sle.item_code)
 	
+	# For Stock Reconciliation, actual_qty is 0; show qty_after_transaction instead
+	display_qty = flt(sle.qty)
+	if sle.voucher_type == "Stock Reconciliation" and not display_qty:
+		display_qty = flt(sle.qty_after_transaction)
+
 	# Build result row
 	row = {
 		"posting_date": sle.posting_date,
@@ -269,7 +284,7 @@ def process_sle_entry(sle, settings, filters, created_by=None):
 		"item_code": sle.item_code,
 		"item_name": sle.item_name,
 		"warehouse": sle.warehouse,
-		"qty": sle.qty,
+		"qty": display_qty,
 		"incoming_rate": incoming_rate,
 		"expected_rate": None,
 		"variance_pct": None,

@@ -725,6 +725,9 @@ def get_incoming_rates(item_code, from_date, to_date, include_internal_suppliers
 	Returns:
 		List of dicts with date, rate, voucher_type, voucher_no, supplier, is_internal_supplier, created_by
 	"""
+	# Stock Reconciliation SLEs have actual_qty=0 and incoming_rate=0;
+	# the rate is in valuation_rate and quantity in qty_after_transaction.
+	# We select both fields and handle the difference in processing below.
 	sle_data = frappe.db.sql("""
 		SELECT
 			sle.posting_date as date,
@@ -732,6 +735,8 @@ def get_incoming_rates(item_code, from_date, to_date, include_internal_suppliers
 			sle.voucher_type,
 			sle.voucher_no,
 			sle.actual_qty as qty,
+			sle.valuation_rate as sle_valuation_rate,
+			sle.qty_after_transaction,
 			sle.stock_value_difference,
 			sle.warehouse
 		FROM `tabStock Ledger Entry` sle
@@ -739,9 +744,12 @@ def get_incoming_rates(item_code, from_date, to_date, include_internal_suppliers
 			ON sle.voucher_type = 'Stock Entry' AND sle.voucher_no = se.name
 		WHERE
 			sle.item_code = %(item_code)s
-			AND sle.actual_qty > 0
 			AND sle.is_cancelled = 0
 			AND sle.voucher_type IN ('Purchase Receipt', 'Purchase Invoice', 'Stock Entry', 'Stock Reconciliation')
+			AND (
+				sle.actual_qty > 0
+				OR (sle.voucher_type = 'Stock Reconciliation' AND sle.qty_after_transaction > 0)
+			)
 			AND (
 				sle.voucher_type NOT IN ('Stock Entry')
 				OR se.purpose NOT IN %(transfer_purposes)s
@@ -781,7 +789,10 @@ def get_incoming_rates(item_code, from_date, to_date, include_internal_suppliers
 	data_points = []
 	for sle in sle_data:
 		rate = flt(sle.rate)
-		# If incoming_rate is 0, calculate from stock_value_difference
+		# Stock Reconciliation: incoming_rate is 0, use valuation_rate instead
+		if not rate and sle.voucher_type == "Stock Reconciliation":
+			rate = flt(sle.sle_valuation_rate)
+		# Fallback: calculate from stock_value_difference / actual_qty
 		if not rate and sle.stock_value_difference and sle.qty:
 			rate = abs(flt(sle.stock_value_difference) / flt(sle.qty))
 		

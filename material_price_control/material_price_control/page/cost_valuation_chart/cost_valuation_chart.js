@@ -88,9 +88,14 @@ class CostValuationChart {
 								</div>
 							</div>
 						</div>
-						<div class="col-md-2">
+						<div class="col-md-1">
 							<button class="btn btn-primary btn-sm btn-block" id="refresh-chart-btn">
 								<i class="fa fa-refresh"></i> ${__("Refresh")}
+							</button>
+						</div>
+						<div class="col-md-1">
+							<button class="btn btn-default btn-sm btn-block" id="stock-ledger-btn" title="${__("Open Stock Ledger report for this item")}">
+								<i class="fa fa-book"></i> ${__("Stock Ledger")}
 							</button>
 						</div>
 					</div>
@@ -263,6 +268,11 @@ class CostValuationChart {
 			}
 		});
 
+		// Stock Ledger button - opens report with current filters
+		this.page.main.find("#stock-ledger-btn").on("click", () => {
+			this.openStockLedger();
+		});
+
 		// Include internal suppliers checkbox
 		this.page.main.find("#include-internal-suppliers").on("change", () => {
 			this.refreshChart();
@@ -290,6 +300,31 @@ class CostValuationChart {
 		this.page.main.find("#table-search").on("input", function() {
 			self.filterTable($(this).val());
 		});
+	}
+
+	openStockLedger() {
+		const itemCode = this.itemField.get_value();
+		if (!itemCode) {
+			frappe.show_alert({
+				message: __("Please select an Item first"),
+				indicator: "yellow"
+			});
+			return;
+		}
+
+		const fromDate = this.fromDateField.get_value();
+		const toDate = this.toDateField.get_value();
+
+		const params = new URLSearchParams({
+			item_code: itemCode,
+			from_date: fromDate,
+			to_date: toDate
+		});
+
+		window.open(
+			`/app/query-report/Stock Ledger?${params.toString()}`,
+			"_blank"
+		);
 	}
 
 	downloadChart() {
