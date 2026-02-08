@@ -100,6 +100,12 @@ jobs:
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL character_set_server = 'utf8mb4'"
           mariadb --host 127.0.0.1 --port 3306 -u root -proot -e "SET GLOBAL collation_server = 'utf8mb4_unicode_ci'"
 
+      - name: Install setuptools (v15 - needed for pkg_resources)
+        if: matrix.frappe-version == 'version-15'
+        working-directory: /home/runner/frappe-bench
+        run: |
+          ./env/bin/pip install setuptools
+
       - name: Install
         working-directory: /home/runner/frappe-bench
         run: |
