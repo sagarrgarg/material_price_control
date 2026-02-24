@@ -5,13 +5,14 @@
 Material Price Control - Guard Module
 
 This module provides hooks to check valuation rates on stock-in transactions
-(Purchase Receipt, Purchase Invoice, Stock Entry, Stock Reconciliation) and detect anomalies.
+(Purchase Order, Purchase Receipt, Purchase Invoice, Stock Entry, Stock Reconciliation)
+and detect anomalies.
 """
 
 import math
 import frappe
 from frappe import _
-from frappe.utils import flt, getdate, add_months, nowdate, cstr
+from frappe.utils import flt, getdate, add_months, nowdate, now, cstr
 
 TRANSFER_STOCK_ENTRY_PURPOSES = (
 	"Material Transfer",
@@ -29,8 +30,31 @@ def has_custom_field(doctype, fieldname):
 
 
 # =============================================================================
-# Validation Hooks (before_submit)
+# Validation Hooks
 # =============================================================================
+
+def check_purchase_order(doc, method):
+	"""Check Purchase Order items for valuation anomalies (ordered rate vs expected rate)"""
+	settings = get_settings()
+	if not settings or not settings.enabled:
+		return
+
+	# Skip validation for internal suppliers if setting is disabled
+	if not getattr(settings, 'include_internal_suppliers', False):
+		if is_internal_supplier(doc.supplier):
+			return
+
+	for item in doc.items:
+		if flt(item.qty) <= 0:
+			continue
+
+		# Purchase Order uses 'rate', not 'valuation_rate'
+		ordered_rate = flt(item.rate)
+		if not ordered_rate:
+			continue
+
+		check_item_rate(doc, item, ordered_rate, "Purchase Order", settings)
+
 
 def check_purchase_receipt(doc, method):
 	"""Check Purchase Receipt items for valuation anomalies"""
@@ -168,7 +192,9 @@ def check_item_rate(doc, item_row, incoming_rate, voucher_type, settings):
 	"""
 	# Get warehouse and posting date for rule resolution
 	warehouse = getattr(item_row, 'warehouse', None) or getattr(item_row, 't_warehouse', None)
-	posting_date = getattr(doc, 'posting_date', None) or nowdate()
+	if not warehouse:
+		warehouse = getattr(doc, 'set_warehouse', None)  # Purchase Order default
+	posting_date = getattr(doc, 'posting_date', None) or getattr(doc, 'transaction_date', None) or nowdate()
 	
 	expected = get_expected_rate(item_row.item_code, warehouse=warehouse, posting_date=posting_date)
 
@@ -201,15 +227,31 @@ def check_item_rate(doc, item_row, incoming_rate, voucher_type, settings):
 		return  # Normal rate, no action needed
 
 	# Log the anomaly
-	log_anomaly(doc, item_row, incoming_rate, expected, variance_pct, severity, voucher_type)
+	anomaly_name = log_anomaly(doc, item_row, incoming_rate, expected, variance_pct, severity, voucher_type)
 
 	# Block if severe and blocking enabled
 	if severity == "Severe" and settings.block_severe:
-		if not can_bypass_block(settings):
-			throw_anomaly_error(
-				item_row, incoming_rate, expected, variance_pct,
-				allowed_variance, severe_threshold, block_reason
-			)
+		override_reason = (getattr(doc, 'mpc_override_reason', None) or '').strip()
+		user_can_override = can_bypass_block(settings)
+
+		if override_reason and user_can_override:
+			if anomaly_name:
+				frappe.db.set_value("Cost Anomaly Log", anomaly_name, {
+					"bypassed_by": frappe.session.user,
+					"bypassed_at": now(),
+					"override_reason": override_reason
+				})
+			if not getattr(doc, '_mpc_audit_set', False):
+				doc.mpc_overridden_by = frappe.session.user
+				doc.mpc_overridden_at = now()
+				doc._mpc_audit_set = True
+			return
+
+		throw_anomaly_error(
+			item_row, incoming_rate, expected, variance_pct,
+			allowed_variance, severe_threshold, block_reason,
+			can_override=user_can_override
+		)
 
 
 def determine_severity(incoming_rate, expected, variance_pct, allowed_variance, severe_threshold):
@@ -243,22 +285,32 @@ def determine_severity(incoming_rate, expected, variance_pct, allowed_variance, 
 
 
 def throw_anomaly_error(item_row, incoming_rate, expected, variance_pct,
-                        allowed_variance, severe_threshold, block_reason):
-	"""Build and throw detailed error message for blocked transactions."""
+                        allowed_variance, severe_threshold, block_reason,
+                        can_override=False):
+	"""Build and throw detailed error message for blocked transactions.
+
+	Args:
+		item_row: Item child-table row
+		incoming_rate: The incoming valuation rate
+		expected: dict with expected_rate, min_rate, max_rate
+		variance_pct: Calculated variance percentage
+		allowed_variance: Allowed variance threshold
+		severe_threshold: Severe variance threshold
+		block_reason: Translated reason string
+		can_override: If True, show override button in error dialog
+	"""
 	msg = _("Cost Valuation Anomaly for Item {0}").format(frappe.bold(item_row.item_code))
 	msg += "<br><br>"
 	msg += "<table style='width:100%; border-collapse: collapse;'>"
 	msg += "<tr><td style='padding:4px;'><b>" + _("Incoming Rate") + ":</b></td>"
 	msg += "<td style='padding:4px;'>₹{0}</td></tr>".format(incoming_rate)
 
-	# Check if this is a hard bound violation or variance violation
 	is_hard_bound_violation = (
 		(expected.get("min_rate") and incoming_rate < expected["min_rate"]) or
 		(expected.get("max_rate") and incoming_rate > expected["max_rate"])
 	)
 
 	if is_hard_bound_violation:
-		# Show only hard bounds info - no variance details
 		if expected.get("min_rate"):
 			msg += "<tr><td style='padding:4px;'><b>" + _("Minimum Allowed") + ":</b></td>"
 			msg += "<td style='padding:4px;'>₹{0}</td></tr>".format(expected["min_rate"])
@@ -266,7 +318,6 @@ def throw_anomaly_error(item_row, incoming_rate, expected, variance_pct,
 			msg += "<tr><td style='padding:4px;'><b>" + _("Maximum Allowed") + ":</b></td>"
 			msg += "<td style='padding:4px;'>₹{0}</td></tr>".format(expected["max_rate"])
 	else:
-		# Show variance-related info
 		msg += "<tr><td style='padding:4px;'><b>" + _("Expected Rate") + ":</b></td>"
 		msg += "<td style='padding:4px;'>₹{0}</td></tr>".format(expected["expected_rate"])
 		msg += "<tr><td style='padding:4px;'><b>" + _("Variance") + ":</b></td>"
@@ -279,10 +330,23 @@ def throw_anomaly_error(item_row, incoming_rate, expected, variance_pct,
 	msg += "</table>"
 	msg += "<br>"
 	msg += "<b>" + _("Reason") + ":</b> " + block_reason
-	msg += "<br><br>"
-	msg += _("Please correct the rate or contact a user with bypass permissions.")
 
-	frappe.throw(msg, title=_("Cost Valuation Anomaly - Blocked"))
+	if can_override:
+		msg += "<br><br>"
+		msg += _("You have override permissions. Click <b>Override</b> to provide a reason and proceed.")
+		frappe.throw(
+			msg,
+			title=_("Cost Valuation Anomaly"),
+			primary_action={
+				"label": _("Override"),
+				"client_action": "material_price_control.show_override_dialog",
+				"args": {}
+			}
+		)
+	else:
+		msg += "<br><br>"
+		msg += _("Please correct the rate or contact a user with override permissions.")
+		frappe.throw(msg, title=_("Cost Valuation Anomaly - Blocked"))
 
 
 def get_expected_rate(item_code, warehouse=None, posting_date=None):
@@ -450,8 +514,10 @@ def log_anomaly(doc, item_row, incoming_rate, expected, variance_pct, severity, 
 		severity: 'Warning' or 'Severe'
 		voucher_type: Type of voucher
 	"""
-	# Safe warehouse access - PR/PI use 'warehouse', SE uses 't_warehouse'
+	# Safe warehouse access - PR/PI use 'warehouse', SE uses 't_warehouse', PO uses set_warehouse fallback
 	warehouse = getattr(item_row, 'warehouse', None) or getattr(item_row, 't_warehouse', None)
+	if not warehouse:
+		warehouse = getattr(doc, 'set_warehouse', None)
 	
 	anomaly = frappe.get_doc({
 		"doctype": "Cost Anomaly Log",
@@ -466,6 +532,7 @@ def log_anomaly(doc, item_row, incoming_rate, expected, variance_pct, severity, 
 		"status": "Open"
 	})
 	anomaly.insert(ignore_permissions=True)
+	return anomaly.name
 
 
 def get_settings():
@@ -571,10 +638,16 @@ def can_bypass_block(settings):
 		return False
 
 	user_roles = frappe.get_roles()
-	# Read roles from Table MultiSelect (child table)
 	bypass_roles = [row.role for row in settings.bypass_roles if row.role]
 
 	return bool(set(user_roles) & set(bypass_roles))
+
+
+@frappe.whitelist()
+def can_override_cost_validation():
+	"""Check if current user has cost validation override permissions."""
+	settings = get_settings()
+	return can_bypass_block(settings)
 
 
 # =============================================================================

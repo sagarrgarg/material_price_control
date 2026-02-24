@@ -26,14 +26,22 @@ required_apps = ["frappe", "erpnext"]
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/material_price_control/css/material_price_control.css"
-app_include_js = "/assets/material_price_control/js/echarts.min.js"
+app_include_js = [
+	"/assets/material_price_control/js/echarts.min.js",
+	"/assets/material_price_control/js/cost_override.js"
+]
 
 # Fixtures
 # --------
 fixtures = [
 	{
 		"dt": "Role",
-		"filters": [["role_name", "in", ["Cost Guard", "Cost Manager"]]]
+		"filters": [["role_name", "in", ["Cost Guard", "Cost Manager", "Cost Valuation Bypass"]]]
+	},
+	{
+		"dt": "Custom Field",
+		"filters": [["module", "=", "Material Price Control"]],
+		"overwrite": True
 	},
 	{
 		"dt": "Number Card",
@@ -155,6 +163,9 @@ fixtures = [
 # Hook on document methods and events
 
 doc_events = {
+	"Purchase Order": {
+		"before_submit": "material_price_control.material_price_control.guard.check_purchase_order"
+	},
 	"Purchase Receipt": {
 		"before_submit": "material_price_control.material_price_control.guard.check_purchase_receipt"
 	},

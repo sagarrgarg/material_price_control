@@ -16,6 +16,9 @@
   "expected_rate",
   "variance_pct",
   "severity",
+  "bypassed_by",
+  "bypassed_at",
+  "override_reason",
   "column_break_2",
   "status",
   "notes"
@@ -86,6 +89,28 @@
    "in_standard_filter": 1,
    "label": "Severity",
    "options": "Warning\nSevere",
+   "read_only": 1
+  },
+  {
+   "description": "User who submitted despite severe anomaly",
+   "fieldname": "bypassed_by",
+   "fieldtype": "Link",
+   "label": "Bypassed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "description": "When the transaction was submitted with bypass",
+   "fieldname": "bypassed_at",
+   "fieldtype": "Datetime",
+   "label": "Bypassed At",
+   "read_only": 1
+  },
+  {
+   "description": "Reason provided for overriding cost validation",
+   "fieldname": "override_reason",
+   "fieldtype": "Small Text",
+   "label": "Override Reason",
    "read_only": 1
   },
   {

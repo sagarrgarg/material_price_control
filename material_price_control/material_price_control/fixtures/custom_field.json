@@ -1,0 +1,291 @@
+[
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Order",
+    "fieldname": "mpc_cost_override_section",
+    "fieldtype": "Section Break",
+    "label": "Cost Validation Override",
+    "insert_after": "schedule_date",
+    "depends_on": "eval:doc.mpc_override_reason",
+    "collapsible": 1,
+    "module": "Material Price Control",
+    "name": "Purchase Order-mpc_cost_override_section"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Order",
+    "fieldname": "mpc_override_reason",
+    "fieldtype": "Small Text",
+    "label": "Override Reason",
+    "insert_after": "mpc_cost_override_section",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Purchase Order-mpc_override_reason"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Order",
+    "fieldname": "mpc_override_column_break",
+    "fieldtype": "Column Break",
+    "insert_after": "mpc_override_reason",
+    "module": "Material Price Control",
+    "name": "Purchase Order-mpc_override_column_break"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Order",
+    "fieldname": "mpc_overridden_by",
+    "fieldtype": "Data",
+    "label": "Overridden By",
+    "insert_after": "mpc_override_column_break",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Purchase Order-mpc_overridden_by"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Order",
+    "fieldname": "mpc_overridden_at",
+    "fieldtype": "Datetime",
+    "label": "Overridden At",
+    "insert_after": "mpc_overridden_by",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Purchase Order-mpc_overridden_at"
+  },
+
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Receipt",
+    "fieldname": "mpc_cost_override_section",
+    "fieldtype": "Section Break",
+    "label": "Cost Validation Override",
+    "insert_after": "posting_date",
+    "depends_on": "eval:doc.mpc_override_reason",
+    "collapsible": 1,
+    "module": "Material Price Control",
+    "name": "Purchase Receipt-mpc_cost_override_section"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Receipt",
+    "fieldname": "mpc_override_reason",
+    "fieldtype": "Small Text",
+    "label": "Override Reason",
+    "insert_after": "mpc_cost_override_section",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Purchase Receipt-mpc_override_reason"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Receipt",
+    "fieldname": "mpc_override_column_break",
+    "fieldtype": "Column Break",
+    "insert_after": "mpc_override_reason",
+    "module": "Material Price Control",
+    "name": "Purchase Receipt-mpc_override_column_break"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Receipt",
+    "fieldname": "mpc_overridden_by",
+    "fieldtype": "Data",
+    "label": "Overridden By",
+    "insert_after": "mpc_override_column_break",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Purchase Receipt-mpc_overridden_by"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Receipt",
+    "fieldname": "mpc_overridden_at",
+    "fieldtype": "Datetime",
+    "label": "Overridden At",
+    "insert_after": "mpc_overridden_by",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Purchase Receipt-mpc_overridden_at"
+  },
+
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Invoice",
+    "fieldname": "mpc_cost_override_section",
+    "fieldtype": "Section Break",
+    "label": "Cost Validation Override",
+    "insert_after": "posting_date",
+    "depends_on": "eval:doc.mpc_override_reason",
+    "collapsible": 1,
+    "module": "Material Price Control",
+    "name": "Purchase Invoice-mpc_cost_override_section"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Invoice",
+    "fieldname": "mpc_override_reason",
+    "fieldtype": "Small Text",
+    "label": "Override Reason",
+    "insert_after": "mpc_cost_override_section",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Purchase Invoice-mpc_override_reason"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Invoice",
+    "fieldname": "mpc_override_column_break",
+    "fieldtype": "Column Break",
+    "insert_after": "mpc_override_reason",
+    "module": "Material Price Control",
+    "name": "Purchase Invoice-mpc_override_column_break"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Invoice",
+    "fieldname": "mpc_overridden_by",
+    "fieldtype": "Data",
+    "label": "Overridden By",
+    "insert_after": "mpc_override_column_break",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Purchase Invoice-mpc_overridden_by"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Purchase Invoice",
+    "fieldname": "mpc_overridden_at",
+    "fieldtype": "Datetime",
+    "label": "Overridden At",
+    "insert_after": "mpc_overridden_by",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Purchase Invoice-mpc_overridden_at"
+  },
+
+  {
+    "doctype": "Custom Field",
+    "dt": "Stock Entry",
+    "fieldname": "mpc_cost_override_section",
+    "fieldtype": "Section Break",
+    "label": "Cost Validation Override",
+    "insert_after": "purpose",
+    "depends_on": "eval:doc.mpc_override_reason",
+    "collapsible": 1,
+    "module": "Material Price Control",
+    "name": "Stock Entry-mpc_cost_override_section"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Stock Entry",
+    "fieldname": "mpc_override_reason",
+    "fieldtype": "Small Text",
+    "label": "Override Reason",
+    "insert_after": "mpc_cost_override_section",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Stock Entry-mpc_override_reason"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Stock Entry",
+    "fieldname": "mpc_override_column_break",
+    "fieldtype": "Column Break",
+    "insert_after": "mpc_override_reason",
+    "module": "Material Price Control",
+    "name": "Stock Entry-mpc_override_column_break"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Stock Entry",
+    "fieldname": "mpc_overridden_by",
+    "fieldtype": "Data",
+    "label": "Overridden By",
+    "insert_after": "mpc_override_column_break",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Stock Entry-mpc_overridden_by"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Stock Entry",
+    "fieldname": "mpc_overridden_at",
+    "fieldtype": "Datetime",
+    "label": "Overridden At",
+    "insert_after": "mpc_overridden_by",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Stock Entry-mpc_overridden_at"
+  },
+
+  {
+    "doctype": "Custom Field",
+    "dt": "Stock Reconciliation",
+    "fieldname": "mpc_cost_override_section",
+    "fieldtype": "Section Break",
+    "label": "Cost Validation Override",
+    "insert_after": "posting_date",
+    "depends_on": "eval:doc.mpc_override_reason",
+    "collapsible": 1,
+    "module": "Material Price Control",
+    "name": "Stock Reconciliation-mpc_cost_override_section"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Stock Reconciliation",
+    "fieldname": "mpc_override_reason",
+    "fieldtype": "Small Text",
+    "label": "Override Reason",
+    "insert_after": "mpc_cost_override_section",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Stock Reconciliation-mpc_override_reason"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Stock Reconciliation",
+    "fieldname": "mpc_override_column_break",
+    "fieldtype": "Column Break",
+    "insert_after": "mpc_override_reason",
+    "module": "Material Price Control",
+    "name": "Stock Reconciliation-mpc_override_column_break"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Stock Reconciliation",
+    "fieldname": "mpc_overridden_by",
+    "fieldtype": "Data",
+    "label": "Overridden By",
+    "insert_after": "mpc_override_column_break",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Stock Reconciliation-mpc_overridden_by"
+  },
+  {
+    "doctype": "Custom Field",
+    "dt": "Stock Reconciliation",
+    "fieldname": "mpc_overridden_at",
+    "fieldtype": "Datetime",
+    "label": "Overridden At",
+    "insert_after": "mpc_overridden_by",
+    "read_only": 1,
+    "no_copy": 1,
+    "module": "Material Price Control",
+    "name": "Stock Reconciliation-mpc_overridden_at"
+  }
+]
